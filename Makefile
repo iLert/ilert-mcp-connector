@@ -32,9 +32,7 @@ start: build ## Build and start the server
 
 test: ## Run tests
 	@echo "Running tests..."
-	@go test -v -race -coverprofile=coverage.out ./...
-	@go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
+	@go test -v -race ./...
 
 test-short: ## Run tests without race detector
 	@echo "Running tests (short)..."

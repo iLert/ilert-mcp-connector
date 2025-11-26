@@ -422,4 +422,3 @@ func (h *ClickHouseHandler) GetMetrics(c *gin.Context) {
 
 	c.JSON(http.StatusOK, metrics)
 }
-
