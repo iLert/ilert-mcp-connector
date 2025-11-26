@@ -102,6 +102,52 @@ Configuration is done via environment variables:
 - `MYSQL_PASSWORD` - MySQL password (default: empty)
 - `MYSQL_DATABASE` - MySQL database name (default: empty)
 
+#### MySQL User Setup
+
+The MCP connector requires a MySQL user with specific read-only privileges. The connector performs the following operations:
+
+- `SHOW DATABASES` - List all databases
+- `SHOW TABLES FROM <database>` - List tables in a database
+- `DESCRIBE <database>.<table>` - Get table schema
+- `SHOW TABLE STATUS` - Get table metadata
+- `SHOW STATUS` / `SHOW GLOBAL STATUS` - Get MySQL status variables
+- `SHOW VARIABLES` / `SHOW GLOBAL VARIABLES` - Get MySQL configuration variables
+- `SHOW PROCESSLIST` - View current queries and connections
+- `SHOW SLAVE STATUS` / `SHOW MASTER STATUS` - View replication status
+- `SHOW ENGINE INNODB STATUS` - View InnoDB status and lock information
+
+**Required Privileges:**
+
+The user needs only TWO privileges:
+
+1. **PROCESS** - Required for `SHOW PROCESSLIST` and `SHOW ENGINE INNODB STATUS`
+2. **REPLICATION CLIENT** - Required for `SHOW SLAVE STATUS` and `SHOW MASTER STATUS`
+
+**Note:** The following operations work WITHOUT additional privileges:
+- `SHOW DATABASES` - works for any user (shows databases they can access)
+- `SHOW TABLES` - works if user has any privilege on the database
+- `DESCRIBE` / `SHOW COLUMNS` - works if user has any privilege on the table
+- `SHOW TABLE STATUS` - works if user has any privilege on the database
+- `SHOW STATUS` / `SHOW GLOBAL STATUS` - works for all users
+- `SHOW VARIABLES` / `SHOW GLOBAL VARIABLES` - works for all users
+
+**Example SQL Script:**
+
+```sql
+-- Create the user
+CREATE USER IF NOT EXISTS 'ilert_mcp_connector'@'%' IDENTIFIED BY 'your_secure_password_here';
+
+-- Grant necessary privileges (only 2 privileges needed!)
+GRANT PROCESS ON *.* TO 'ilert_mcp_connector'@'%';
+GRANT REPLICATION CLIENT ON *.* TO 'ilert_mcp_connector'@'%';
+
+-- Apply changes
+FLUSH PRIVILEGES;
+
+-- Verify grants
+SHOW GRANTS FOR 'ilert_mcp_connector'@'%';
+```
+
 ### ClickHouse Configuration
 
 - `CLICKHOUSE_ENABLED` - Enable ClickHouse endpoints (default: `false`)
