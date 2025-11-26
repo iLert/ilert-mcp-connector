@@ -146,13 +146,6 @@ func initKafkaLogging() {
 	}()
 }
 
-func getKafkaLogChannel() chan kafka.LogEvent {
-	if !kafkaLoggingInitialized {
-		initKafkaLogging()
-	}
-	return kafkaLogChan
-}
-
 func NewKafkaHandler(config KafkaConfig) *KafkaHandler {
 	initKafkaLogging()
 	configMap := buildKafkaConfigMap(config, 10000)
