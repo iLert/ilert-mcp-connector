@@ -40,9 +40,15 @@ func AccessLogMiddleware() gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
+		userAgent := c.Request.UserAgent()
 
 		// Process request
 		c.Next()
+
+		// Skip logging for Kubernetes probes on health/ready endpoints
+		if (path == "/health" || path == "/ready") && len(userAgent) >= 10 && userAgent[:10] == "kube-probe" {
+			return
+		}
 
 		// Log after request is processed
 		duration := time.Since(start)
@@ -65,7 +71,7 @@ func AccessLogMiddleware() gin.HandlerFunc {
 			Int("status", statusCode).
 			Str("ip", clientIP).
 			Dur("latency", duration).
-			Str("user_agent", c.Request.UserAgent())
+			Str("user_agent", userAgent)
 
 		if errorMessage != "" {
 			event.Str("error", errorMessage)

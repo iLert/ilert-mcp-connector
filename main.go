@@ -27,11 +27,6 @@ func main() {
 	// Load configuration
 	cfg := LoadConfig()
 
-	log.Info().
-		Str("version", Version).
-		Str("commit", Commit).
-		Msg("Starting ilert-mcp-connector")
-
 	// Initialize router
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -91,7 +86,7 @@ func main() {
 			Str("addr", srv.Addr).
 			Str("version", Version).
 			Str("commit", Commit).
-			Msg("Server starting")
+			Msg("Starting ilert-mcp-connector server")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("Server failed to start")
 		}
