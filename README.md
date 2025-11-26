@@ -13,15 +13,21 @@ A HTTP server that exposes information from internal tools (Kafka, MySQL) via RE
 
 ## Endpoints
 
-### Health & Readiness (Public - No Auth Required)
+### Health & Readiness
 
-- `GET /health` - Health check endpoint
-- `GET /ready` - Readiness check endpoint (verifies connections to enabled tools)
-- `GET /version` - Version information endpoint (returns version and commit)
+- `GET /health` - Health check endpoint (Public - No Auth Required)
+- `GET /ready` - Readiness check endpoint (verifies connections to enabled tools) - **Requires Authentication**
+- `GET /version` - Version information endpoint (returns version and commit) (Public - No Auth Required)
 
 ### Authentication
 
-All Kafka and MySQL endpoints require authentication via the `Authorization` header. The token can be provided in two ways:
+The following endpoints require authentication via the `Authorization` header:
+- `/ready` - Readiness check endpoint (contains connection status and potential error messages)
+- All `/kafka/*` endpoints
+- All `/mysql/*` endpoints
+- All `/clickhouse/*` endpoints
+
+The token can be provided in two ways:
 
 1. **Environment Variable**: Set `AUTH_TOKEN` environment variable with your desired token
 2. **Auto-generated**: If `AUTH_TOKEN` is not set, a random 64-character hex token will be generated and logged on startup
@@ -35,7 +41,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8383/kafka/topics
 curl -H "Authorization: YOUR_TOKEN" http://localhost:8383/kafka/topics
 ```
 
-### Kafka Endpoints (when `KAFKA_ENABLED=true`)
+### Kafka Endpoints (when `KAFKA_ENABLED=true`) - **Requires Authentication**
 
 - `GET /kafka/topics` - List all Kafka topics
 - `GET /kafka/topics/:topic` - Describe a specific topic
@@ -43,12 +49,19 @@ curl -H "Authorization: YOUR_TOKEN" http://localhost:8383/kafka/topics
 - `GET /kafka/consumers/:group` - Describe a specific consumer group
 - `GET /kafka/consumers/:group/lag` - Get consumer lag for a consumer group
 
-### MySQL Endpoints (when `MYSQL_ENABLED=true`)
+### MySQL Endpoints (when `MYSQL_ENABLED=true`) - **Requires Authentication**
 
 - `GET /mysql/databases` - List all databases
 - `GET /mysql/databases/:database/tables` - List tables in a database
 - `GET /mysql/databases/:database/tables/:table` - Describe table schema
 - `GET /mysql/metrics` - Get MySQL metrics (InnoDB stats, global status, variables)
+
+### ClickHouse Endpoints (when `CLICKHOUSE_ENABLED=true`) - **Requires Authentication**
+
+- `GET /clickhouse/databases` - List all databases
+- `GET /clickhouse/databases/:database/tables` - List tables in a database
+- `GET /clickhouse/databases/:database/tables/:table` - Describe table schema with columns and table info
+- `GET /clickhouse/metrics` - Get ClickHouse state and critical metrics (system.metrics, system.events, system.asynchronous_metrics, replicas, processes, merges, mutations)
 
 ## Configuration
 
@@ -75,6 +88,15 @@ Configuration is done via environment variables:
 - `MYSQL_USER` - MySQL user (default: `root`)
 - `MYSQL_PASSWORD` - MySQL password (default: empty)
 - `MYSQL_DATABASE` - MySQL database name (default: empty)
+
+### ClickHouse Configuration
+
+- `CLICKHOUSE_ENABLED` - Enable ClickHouse endpoints (default: `false`)
+- `CLICKHOUSE_HOST` - ClickHouse host (default: `localhost`)
+- `CLICKHOUSE_PORT` - ClickHouse port (default: `9000`)
+- `CLICKHOUSE_USER` - ClickHouse user (default: `default`)
+- `CLICKHOUSE_PASSWORD` - ClickHouse password (default: empty)
+- `CLICKHOUSE_DATABASE` - ClickHouse database name (default: `default`)
 
 ## Building
 
@@ -205,10 +227,12 @@ spec:
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /ready
+            path: /health
             port: 8383
           initialDelaySeconds: 5
           periodSeconds: 5
+          # Note: /ready endpoint requires authentication and contains sensitive connection info
+          # Use /health for Kubernetes probes, or configure httpHeaders with Authorization token
 ---
 apiVersion: v1
 kind: Service

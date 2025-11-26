@@ -5,8 +5,9 @@ import (
 )
 
 type Config struct {
-	Kafka KafkaConfig
-	MySQL MySQLConfig
+	Kafka      KafkaConfig
+	MySQL      MySQLConfig
+	ClickHouse ClickHouseConfig
 }
 
 type KafkaConfig struct {
@@ -16,6 +17,15 @@ type KafkaConfig struct {
 }
 
 type MySQLConfig struct {
+	Enabled  bool
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Database string
+}
+
+type ClickHouseConfig struct {
 	Enabled  bool
 	Host     string
 	Port     string
@@ -38,6 +48,14 @@ func LoadConfig() *Config {
 			User:     getEnv("MYSQL_USER", "root"),
 			Password: getEnv("MYSQL_PASSWORD", ""),
 			Database: getEnv("MYSQL_DATABASE", ""),
+		},
+		ClickHouse: ClickHouseConfig{
+			Enabled:  getEnvBool("CLICKHOUSE_ENABLED", false),
+			Host:     getEnv("CLICKHOUSE_HOST", "localhost"),
+			Port:     getEnv("CLICKHOUSE_PORT", "9000"),
+			User:     getEnv("CLICKHOUSE_USER", "default"),
+			Password: getEnv("CLICKHOUSE_PASSWORD", ""),
+			Database: getEnv("CLICKHOUSE_DATABASE", "default"),
 		},
 	}
 	return cfg

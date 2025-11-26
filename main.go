@@ -39,12 +39,14 @@ func main() {
 
 	// Public endpoints (no auth required)
 	router.GET("/health", healthHandler)
-	router.GET("/ready", readyHandler(cfg))
 	router.GET("/version", versionHandler)
 
 	// Protected routes group (requires authentication)
 	protected := router.Group("/")
 	protected.Use(AuthMiddleware())
+
+	// Protected readiness endpoint (contains sensitive connection info)
+	protected.GET("/ready", readyHandler(cfg))
 
 	// Initialize tool handlers
 	if cfg.Kafka.Enabled {
@@ -62,6 +64,14 @@ func main() {
 		protected.GET("/mysql/databases/:database/tables", mysqlHandler.GetTables)
 		protected.GET("/mysql/databases/:database/tables/:table", mysqlHandler.DescribeTable)
 		protected.GET("/mysql/metrics", mysqlHandler.GetMetrics)
+	}
+
+	if cfg.ClickHouse.Enabled {
+		clickhouseHandler := NewClickHouseHandler(cfg.ClickHouse)
+		protected.GET("/clickhouse/databases", clickhouseHandler.GetDatabases)
+		protected.GET("/clickhouse/databases/:database/tables", clickhouseHandler.GetTables)
+		protected.GET("/clickhouse/databases/:database/tables/:table", clickhouseHandler.DescribeTable)
+		protected.GET("/clickhouse/metrics", clickhouseHandler.GetMetrics)
 	}
 
 	// Create HTTP server
@@ -147,6 +157,16 @@ func readyHandler(cfg *Config) gin.HandlerFunc {
 				checks["mysql"] = err.Error()
 			} else {
 				checks["mysql"] = "ok"
+			}
+		}
+
+		if cfg.ClickHouse.Enabled {
+			// Check ClickHouse connection
+			if err := checkClickHouseConnection(cfg.ClickHouse); err != nil {
+				ready = false
+				checks["clickhouse"] = err.Error()
+			} else {
+				checks["clickhouse"] = "ok"
 			}
 		}
 

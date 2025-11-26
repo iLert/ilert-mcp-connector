@@ -174,3 +174,98 @@ type VersionResponse struct {
 	Version string `json:"version"`
 	Commit  string `json:"commit"`
 }
+
+// ClickHouse response types
+
+type ClickHouseColumnInfo struct {
+	Name        string  `json:"name"`
+	Type        string  `json:"type"`
+	DefaultKind *string `json:"defaultKind,omitempty"`
+	DefaultExpr *string `json:"defaultExpr,omitempty"`
+	Comment     *string `json:"comment,omitempty"`
+	CodecExpr   *string `json:"codecExpr,omitempty"`
+	TTLExpr     *string `json:"ttlExpr,omitempty"`
+}
+
+type ClickHouseTableInfo struct {
+	Database     string `json:"database"`
+	Table        string `json:"table"`
+	Engine       string `json:"engine"`
+	TotalRows    uint64 `json:"totalRows"`
+	TotalBytes   uint64 `json:"totalBytes"`
+	PrimaryKey   string `json:"primaryKey"`
+	SortingKey   string `json:"sortingKey"`
+	PartitionKey string `json:"partitionKey"`
+}
+
+type ClickHouseMetrics struct {
+	Metrics             map[string]float64   `json:"metrics,omitempty"`
+	Events              map[string]uint64    `json:"events,omitempty"`
+	AsynchronousMetrics map[string]float64   `json:"asynchronousMetrics,omitempty"`
+	Replicas            []ClickHouseReplica  `json:"replicas,omitempty"`
+	Processes           []ClickHouseProcess  `json:"processes,omitempty"`
+	Merges              []ClickHouseMerge    `json:"merges,omitempty"`
+	Mutations           []ClickHouseMutation `json:"mutations,omitempty"`
+}
+
+type ClickHouseReplica struct {
+	Database         string `json:"database"`
+	Table            string `json:"table"`
+	IsLeader         uint8  `json:"isLeader"`
+	IsReadonly       uint8  `json:"isReadonly"`
+	IsSessionExpired uint8  `json:"isSessionExpired"`
+	FutureParts      uint64 `json:"futureParts"`
+	PartsToCheck     uint64 `json:"partsToCheck"`
+	ZookeeperPath    string `json:"zookeeperPath"`
+	ReplicaPath      string `json:"replicaPath"`
+	ColumnsVersion   int64  `json:"columnsVersion"`
+	QueueSize        uint64 `json:"queueSize"`
+	InsertsInQueue   uint64 `json:"insertsInQueue"`
+	MergesInQueue    uint64 `json:"mergesInQueue"`
+	LogMaxIndex      uint64 `json:"logMaxIndex"`
+	LogPointer       uint64 `json:"logPointer"`
+	TotalReplicas    uint8  `json:"totalReplicas"`
+	ActiveReplicas   uint8  `json:"activeReplicas"`
+	LostPartCount    uint64 `json:"lostPartCount"`
+}
+
+type ClickHouseProcess struct {
+	QueryID      string  `json:"queryId"`
+	User         string  `json:"user"`
+	Address      string  `json:"address"`
+	Elapsed      float64 `json:"elapsed"`
+	ReadRows     uint64  `json:"readRows"`
+	ReadBytes    uint64  `json:"readBytes"`
+	TotalRows    uint64  `json:"totalRows"`
+	WrittenRows  uint64  `json:"writtenRows"`
+	WrittenBytes uint64  `json:"writtenBytes"`
+	MemoryUsage  uint64  `json:"memoryUsage"`
+	Query        string  `json:"query"`
+}
+
+type ClickHouseMerge struct {
+	Database        string  `json:"database"`
+	Table           string  `json:"table"`
+	Elapsed         float64 `json:"elapsed"`
+	Progress        uint64  `json:"progress"`
+	NumPartsToMerge uint64  `json:"numPartsToMerge"`
+	RowsRead        uint64  `json:"rowsRead"`
+	BytesRead       uint64  `json:"bytesRead"`
+	RowsWritten     uint64  `json:"rowsWritten"`
+	BytesWritten    uint64  `json:"bytesWritten"`
+	MemoryUsage     uint64  `json:"memoryUsage"`
+}
+
+type ClickHouseMutation struct {
+	Database         string  `json:"database"`
+	Table            string  `json:"table"`
+	MutationID       string  `json:"mutationId"`
+	Command          string  `json:"command"`
+	CreateTime       string  `json:"createTime"`
+	BlockNumbers     string  `json:"blockNumbers"`
+	PartsToDo        uint64  `json:"partsToDo"`
+	IsDone           uint8   `json:"isDone"`
+	LatestFailedPart *string `json:"latestFailedPart,omitempty"`
+	LatestFailTime   *string `json:"latestFailTime,omitempty"`
+	LatestFailReason *string `json:"latestFailReason,omitempty"`
+}
