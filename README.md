@@ -13,11 +13,27 @@ A HTTP server that exposes information from internal tools (Kafka, MySQL) via RE
 
 ## Endpoints
 
-### Health & Readiness
+### Health & Readiness (Public - No Auth Required)
 
 - `GET /health` - Health check endpoint
 - `GET /ready` - Readiness check endpoint (verifies connections to enabled tools)
 - `GET /version` - Version information endpoint (returns version and commit)
+
+### Authentication
+
+All Kafka and MySQL endpoints require authentication via the `Authorization` header. The token can be provided in two ways:
+
+1. **Environment Variable**: Set `AUTH_TOKEN` environment variable with your desired token
+2. **Auto-generated**: If `AUTH_TOKEN` is not set, a random 64-character hex token will be generated and logged on startup
+
+**Usage:**
+```bash
+# Using Bearer token format
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8383/kafka/topics
+
+# Or without Bearer prefix
+curl -H "Authorization: YOUR_TOKEN" http://localhost:8383/kafka/topics
+```
 
 ### Kafka Endpoints (when `KAFKA_ENABLED=true`)
 
@@ -43,6 +59,7 @@ Configuration is done via environment variables:
 - `PORT` - Server port (default: `8383`)
 - `LOG_LEVEL` - Log level: `debug`, `info`, `warn`, `error`, `fatal`, `panic` (default: `info`)
 - `LOG_FORMAT` - Log format: `json` for JSON output, or empty/any other value for pretty console output (default: pretty console)
+- `AUTH_TOKEN` - Authentication token for protecting endpoints. If not set, a random token will be generated and logged on startup (default: auto-generated)
 
 ### Kafka Configuration
 

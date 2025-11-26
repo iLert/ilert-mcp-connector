@@ -21,6 +21,9 @@ func main() {
 	// Initialize logger
 	initLogger()
 
+	// Initialize authentication
+	initAuth()
+
 	// Load configuration
 	cfg := LoadConfig()
 
@@ -34,27 +37,31 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(AccessLogMiddleware())
 
-	// Health and readiness endpoints
+	// Public endpoints (no auth required)
 	router.GET("/health", healthHandler)
 	router.GET("/ready", readyHandler(cfg))
 	router.GET("/version", versionHandler)
 
+	// Protected routes group (requires authentication)
+	protected := router.Group("/")
+	protected.Use(AuthMiddleware())
+
 	// Initialize tool handlers
 	if cfg.Kafka.Enabled {
 		kafkaHandler := NewKafkaHandler(cfg.Kafka)
-		router.GET("/kafka/topics", kafkaHandler.ListTopics)
-		router.GET("/kafka/topics/:topic", kafkaHandler.DescribeTopic)
-		router.GET("/kafka/consumers", kafkaHandler.ListConsumers)
-		router.GET("/kafka/consumers/:group", kafkaHandler.DescribeConsumer)
-		router.GET("/kafka/consumers/:group/lag", kafkaHandler.GetConsumerLag)
+		protected.GET("/kafka/topics", kafkaHandler.ListTopics)
+		protected.GET("/kafka/topics/:topic", kafkaHandler.DescribeTopic)
+		protected.GET("/kafka/consumers", kafkaHandler.ListConsumers)
+		protected.GET("/kafka/consumers/:group", kafkaHandler.DescribeConsumer)
+		protected.GET("/kafka/consumers/:group/lag", kafkaHandler.GetConsumerLag)
 	}
 
 	if cfg.MySQL.Enabled {
 		mysqlHandler := NewMySQLHandler(cfg.MySQL)
-		router.GET("/mysql/databases", mysqlHandler.GetDatabases)
-		router.GET("/mysql/databases/:database/tables", mysqlHandler.GetTables)
-		router.GET("/mysql/databases/:database/tables/:table", mysqlHandler.DescribeTable)
-		router.GET("/mysql/metrics", mysqlHandler.GetMetrics)
+		protected.GET("/mysql/databases", mysqlHandler.GetDatabases)
+		protected.GET("/mysql/databases/:database/tables", mysqlHandler.GetTables)
+		protected.GET("/mysql/databases/:database/tables/:table", mysqlHandler.DescribeTable)
+		protected.GET("/mysql/metrics", mysqlHandler.GetMetrics)
 	}
 
 	// Create HTTP server
