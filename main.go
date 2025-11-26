@@ -27,6 +27,14 @@ func main() {
 	// Load configuration
 	cfg := LoadConfig()
 
+	log.Info().
+		Str("version", Version).
+		Str("commit", Commit).
+		Msg("Starting ilert-mcp-connector")
+
+	// Check connectivity to enabled tools
+	checkToolConnectivity(cfg)
+
 	// Initialize router
 	router := gin.New()
 	router.Use(gin.Recovery())
