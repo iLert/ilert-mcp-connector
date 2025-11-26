@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -46,12 +47,12 @@ func AccessLogMiddleware() gin.HandlerFunc {
 		c.Next()
 
 		// Skip logging for Kubernetes probes on health/ready endpoints
-		if (path == "/health" || path == "/ready") && len(userAgent) >= 10 && userAgent[:10] == "kube-probe" {
+		if (path == "/health" || path == "/ready") && strings.HasPrefix(userAgent, "kube-probe") {
 			return
 		}
 
 		// Skip logging for Prometheus scraping metrics endpoint
-		if path == "/metrics" && len(userAgent) >= 9 && userAgent[:9] == "Prometheus" {
+		if path == "/metrics" && strings.HasPrefix(userAgent, "Prometheus") {
 			return
 		}
 

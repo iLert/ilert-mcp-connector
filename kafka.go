@@ -104,38 +104,60 @@ func buildKafkaConfigMap(config KafkaConfig, timeoutMs int) kafka.ConfigMap {
 		logLevel = logLevelEnv
 	}
 	configMap["log_level"] = logLevel
-	configMap["log_cb"] = kafkaLogCallback
 
 	return configMap
 }
 
-func kafkaLogCallback(event kafka.LogEvent) {
-	var logEvent *zerolog.Event
-	switch event.Level {
-	case 0, 1, 2:
-		logEvent = log.Fatal()
-	case 3:
-		logEvent = log.Error()
-	case 4:
-		logEvent = log.Warn()
-	case 5, 6:
-		logEvent = log.Info()
-	case 7:
-		logEvent = log.Debug()
-	default:
-		logEvent = log.Info()
-	}
+var kafkaLogChan chan kafka.LogEvent
+var kafkaLoggingInitialized bool
 
-	logEvent.
-		Str("name", event.Name).
-		Str("tag", event.Tag).
-		Int("level", event.Level).
-		Str("component", "librdkafka").
-		Msg(event.Message)
+func initKafkaLogging() {
+	if kafkaLoggingInitialized {
+		return
+	}
+	kafkaLoggingInitialized = true
+
+	kafkaLogChan = make(chan kafka.LogEvent, 100)
+	go func() {
+		for event := range kafkaLogChan {
+			var logEvent *zerolog.Event
+			switch event.Level {
+			case 0, 1, 2:
+				logEvent = log.Fatal()
+			case 3:
+				logEvent = log.Error()
+			case 4:
+				logEvent = log.Warn()
+			case 5, 6:
+				logEvent = log.Info()
+			case 7:
+				logEvent = log.Debug()
+			default:
+				logEvent = log.Info()
+			}
+
+			logEvent.
+				Str("name", event.Name).
+				Str("tag", event.Tag).
+				Int("level", event.Level).
+				Str("component", "librdkafka").
+				Msg(event.Message)
+		}
+	}()
+}
+
+func getKafkaLogChannel() chan kafka.LogEvent {
+	if !kafkaLoggingInitialized {
+		initKafkaLogging()
+	}
+	return kafkaLogChan
 }
 
 func NewKafkaHandler(config KafkaConfig) *KafkaHandler {
+	initKafkaLogging()
 	configMap := buildKafkaConfigMap(config, 10000)
+	configMap["go.logs.channel.enable"] = true
+	configMap["go.logs.channel"] = kafkaLogChan
 
 	adminClient, err := kafka.NewAdminClient(&configMap)
 	if err != nil {
@@ -153,7 +175,10 @@ func NewKafkaHandler(config KafkaConfig) *KafkaHandler {
 }
 
 func checkKafkaConnection(config KafkaConfig) error {
+	initKafkaLogging()
 	configMap := buildKafkaConfigMap(config, 5000)
+	configMap["go.logs.channel.enable"] = true
+	configMap["go.logs.channel"] = kafkaLogChan
 
 	adminClient, err := kafka.NewAdminClient(&configMap)
 	if err != nil {
@@ -399,6 +424,8 @@ func (h *KafkaHandler) GetConsumerLag(c *gin.Context) {
 	configMap := buildKafkaConfigMap(h.config, 10000)
 	configMap["group.id"] = groupID
 	configMap["enable.auto.commit"] = false
+	configMap["go.logs.channel.enable"] = true
+	configMap["go.logs.channel"] = kafkaLogChan
 
 	consumer, err := kafka.NewConsumer(&configMap)
 	if err != nil {
