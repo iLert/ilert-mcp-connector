@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,9 +21,8 @@ type KafkaHandler struct {
 
 func buildKafkaConfigMap(config KafkaConfig, timeoutMs int) kafka.ConfigMap {
 	configMap := kafka.ConfigMap{
-		"bootstrap.servers":           strings.Join(config.Brokers, ","),
-		"client.id":                   config.ClientID,
-		"metadata.request.timeout.ms": timeoutMs,
+		"bootstrap.servers": strings.Join(config.Brokers, ","),
+		"client.id":         config.ClientID,
 	}
 
 	hasSSL := config.SSLCertLocation != "" && config.SSLKeyLocation != ""
@@ -39,43 +40,98 @@ func buildKafkaConfigMap(config KafkaConfig, timeoutMs int) kafka.ConfigMap {
 		}
 	}
 
-	switch config.AuthType {
-	case "ssl":
+	hasAuth := config.Username != "" && config.Password != ""
+	authType := config.AuthType
+	if authType == "" || strings.ToUpper(authType) == "NONE" {
+		if hasAuth {
+			authType = "PLAIN"
+			log.Info().Msg("Kafka username/password provided but KAFKA_AUTH_TYPE not set, defaulting to 'PLAIN'")
+		}
+	}
+
+	switch strings.ToUpper(authType) {
+	case "SSL":
 		if !hasSSL {
-			log.Warn().Msg("KAFKA_AUTH_TYPE=ssl requires SSL certificates. Set KAFKA_SSL_CERT_LOCATION and KAFKA_SSL_KEY_LOCATION")
+			log.Warn().Msg("KAFKA_AUTH_TYPE=SSL requires SSL certificates. Set KAFKA_SSL_CERT_LOCATION and KAFKA_SSL_KEY_LOCATION")
 		} else {
 			configMap["security.protocol"] = "ssl"
 		}
-	case "sasl_ssl":
+	case "SASL_SSL":
 		if !hasSSL {
-			log.Warn().Msg("KAFKA_AUTH_TYPE=sasl_ssl requires SSL certificates. Set KAFKA_SSL_CERT_LOCATION and KAFKA_SSL_KEY_LOCATION")
+			log.Warn().Msg("KAFKA_AUTH_TYPE=SASL_SSL requires SSL certificates. Set KAFKA_SSL_CERT_LOCATION and KAFKA_SSL_KEY_LOCATION")
 		} else {
 			configMap["security.protocol"] = "sasl_ssl"
 		}
-		fallthrough
-	case "plain":
-		if config.AuthType == "plain" {
-			configMap["security.protocol"] = "SASL_PLAINTEXT"
+		if hasAuth {
+			configMap["sasl.mechanism"] = "PLAIN"
+			configMap["sasl.username"] = config.Username
+			configMap["sasl.password"] = config.Password
 		}
-		configMap["sasl.mechanism"] = "PLAIN"
-		configMap["sasl.username"] = config.Username
-		configMap["sasl.password"] = config.Password
-	case "scram-sha-256":
+	case "PLAIN":
 		configMap["security.protocol"] = "SASL_PLAINTEXT"
-		configMap["sasl.mechanism"] = "SCRAM-SHA-256"
-		configMap["sasl.username"] = config.Username
-		configMap["sasl.password"] = config.Password
-	case "scram-sha-512":
+		if hasAuth {
+			configMap["sasl.mechanism"] = "PLAIN"
+			configMap["sasl.username"] = config.Username
+			configMap["sasl.password"] = config.Password
+		} else {
+			log.Warn().Msg("KAFKA_AUTH_TYPE=PLAIN but username/password not provided")
+		}
+	case "SCRAM-SHA-256":
 		configMap["security.protocol"] = "SASL_PLAINTEXT"
-		configMap["sasl.mechanism"] = "SCRAM-SHA-512"
-		configMap["sasl.username"] = config.Username
-		configMap["sasl.password"] = config.Password
-	case "none", "":
+		if hasAuth {
+			configMap["sasl.mechanism"] = "SCRAM-SHA-256"
+			configMap["sasl.username"] = config.Username
+			configMap["sasl.password"] = config.Password
+		} else {
+			log.Warn().Msg("KAFKA_AUTH_TYPE=SCRAM-SHA-256 but username/password not provided")
+		}
+	case "SCRAM-SHA-512":
+		configMap["security.protocol"] = "SASL_PLAINTEXT"
+		if hasAuth {
+			configMap["sasl.mechanism"] = "SCRAM-SHA-512"
+			configMap["sasl.username"] = config.Username
+			configMap["sasl.password"] = config.Password
+		} else {
+			log.Warn().Msg("KAFKA_AUTH_TYPE=SCRAM-SHA-512 but username/password not provided")
+		}
+	case "NONE", "":
 	default:
-		log.Warn().Str("authType", config.AuthType).Msg("Unknown Kafka auth type, using no authentication")
+		log.Warn().Str("authType", authType).Msg("Unknown Kafka auth type, using no authentication")
 	}
 
+	logLevel := "6"
+	if logLevelEnv := os.Getenv("KAFKA_LOG_LEVEL"); logLevelEnv != "" {
+		logLevel = logLevelEnv
+	}
+	configMap["log_level"] = logLevel
+	configMap["log_cb"] = kafkaLogCallback
+
 	return configMap
+}
+
+func kafkaLogCallback(event kafka.LogEvent) {
+	var logEvent *zerolog.Event
+	switch event.Level {
+	case 0, 1, 2:
+		logEvent = log.Fatal()
+	case 3:
+		logEvent = log.Error()
+	case 4:
+		logEvent = log.Warn()
+	case 5, 6:
+		logEvent = log.Info()
+	case 7:
+		logEvent = log.Debug()
+	default:
+		logEvent = log.Info()
+	}
+
+	logEvent.
+		Str("name", event.Name).
+		Str("tag", event.Tag).
+		Int("level", event.Level).
+		Str("component", "librdkafka").
+		Msg(event.Message)
 }
 
 func NewKafkaHandler(config KafkaConfig) *KafkaHandler {
@@ -124,6 +180,7 @@ func (h *KafkaHandler) ListTopics(c *gin.Context) {
 	}
 
 	metadata, err := h.adminClient.GetMetadata(nil, true, int(10*time.Second.Milliseconds()))
+	recordKafkaOperation("list_topics", err)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to list Kafka topics")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -155,6 +212,7 @@ func (h *KafkaHandler) DescribeTopic(c *gin.Context) {
 	topicName := c.Param("topic")
 
 	metadata, err := h.adminClient.GetMetadata(&topicName, true, int(10*time.Second.Milliseconds()))
+	recordKafkaOperation("describe_topic", err)
 	if err != nil {
 		log.Error().Err(err).Str("topic", topicName).Msg("Failed to describe Kafka topic")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -210,6 +268,7 @@ func (h *KafkaHandler) ListConsumers(c *gin.Context) {
 	defer cancel()
 
 	result, err := h.adminClient.ListConsumerGroups(ctx)
+	recordKafkaOperation("list_consumers", err)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to list Kafka consumer groups")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -238,6 +297,7 @@ func (h *KafkaHandler) DescribeConsumer(c *gin.Context) {
 	defer cancel()
 
 	result, err := h.adminClient.DescribeConsumerGroups(ctx, []string{groupID})
+	recordKafkaOperation("describe_consumer", err)
 	if err != nil {
 		log.Error().Err(err).Str("group", groupID).Msg("Failed to describe Kafka consumer group")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -298,6 +358,7 @@ func (h *KafkaHandler) GetConsumerLag(c *gin.Context) {
 	metadata, err := h.adminClient.GetMetadata(nil, true, int(10*time.Second.Milliseconds()))
 	if err != nil {
 		log.Error().Err(err).Str("group", groupID).Msg("Failed to get metadata for consumer lag")
+		recordKafkaOperation("get_consumer_lag", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
@@ -403,6 +464,7 @@ func (h *KafkaHandler) GetConsumerLag(c *gin.Context) {
 		})
 	}
 
+	recordKafkaOperation("get_consumer_lag", nil)
 	c.JSON(http.StatusOK, ConsumerLagResponse{
 		GroupID: groupID,
 		Lag:     lagData,

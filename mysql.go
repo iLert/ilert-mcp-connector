@@ -77,6 +77,8 @@ func (h *MySQLHandler) GetDatabases(c *gin.Context) {
 	defer cancel()
 
 	rows, err := h.db.QueryContext(ctx, "SHOW DATABASES")
+	recordMySQLOperation("get_databases", err)
+	updateMySQLConnectionMetrics(h.db)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to query MySQL databases")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -118,6 +120,8 @@ func (h *MySQLHandler) GetTables(c *gin.Context) {
 
 	query := fmt.Sprintf("SHOW TABLES FROM `%s`", database)
 	rows, err := h.db.QueryContext(ctx, query)
+	recordMySQLOperation("get_tables", err)
+	updateMySQLConnectionMetrics(h.db)
 	if err != nil {
 		log.Error().Err(err).Str("database", database).Msg("Failed to query MySQL tables")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -161,9 +165,10 @@ func (h *MySQLHandler) DescribeTable(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Get table schema
 	query := fmt.Sprintf("DESCRIBE `%s`.`%s`", database, table)
 	rows, err := h.db.QueryContext(ctx, query)
+	recordMySQLOperation("describe_table", err)
+	updateMySQLConnectionMetrics(h.db)
 	if err != nil {
 		log.Error().Err(err).Str("database", database).Str("table", table).Msg("Failed to describe MySQL table")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -252,7 +257,6 @@ func (h *MySQLHandler) GetMetrics(c *gin.Context) {
 
 	metrics := MetricsResponse{}
 
-	// Get InnoDB status
 	innodbRows, err := h.db.QueryContext(ctx, "SHOW STATUS LIKE 'Innodb%'")
 	if err == nil {
 		defer innodbRows.Close()
@@ -346,6 +350,8 @@ func (h *MySQLHandler) GetMetrics(c *gin.Context) {
 		metrics.Locks = lockInfo
 	}
 
+	recordMySQLOperation("get_metrics", nil)
+	updateMySQLConnectionMetrics(h.db)
 	c.JSON(http.StatusOK, metrics)
 }
 

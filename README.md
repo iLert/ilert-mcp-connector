@@ -7,8 +7,10 @@ A HTTP server that exposes information from internal tools (Kafka, MySQL) via RE
 - **Health and Readiness Endpoints**: Kubernetes-ready with `/health` and `/ready` endpoints
 - **Kafka Integration**: List topics, describe topics, manage consumer groups, and monitor consumer lag
 - **MySQL Integration**: Query databases, tables, schemas, and metrics
+- **ClickHouse Integration**: Query databases, tables, schemas, and metrics
 - **Configurable**: Enable/disable tools individually via environment variables
-- **Zero Logging**: Minimal logging for production use
+- **Prometheus Metrics**: `/metrics` endpoint for monitoring (no authentication required)
+- **Structured Logging**: Uses zerolog with configurable log levels and formats
 - **Docker Support**: Containerized and ready for Kubernetes deployment
 
 ## Endpoints
@@ -18,6 +20,7 @@ A HTTP server that exposes information from internal tools (Kafka, MySQL) via RE
 - `GET /health` - Health check endpoint (Public - No Auth Required)
 - `GET /ready` - Readiness check endpoint (verifies connections to enabled tools) - **Requires Authentication**
 - `GET /version` - Version information endpoint (returns version and commit) (Public - No Auth Required)
+- `GET /metrics` - Prometheus metrics endpoint (Public - No Auth Required)
 
 ### Authentication
 
@@ -79,14 +82,16 @@ Configuration is done via environment variables:
 - `KAFKA_ENABLED` - Enable Kafka endpoints (default: `false`)
 - `KAFKA_BROKERS` - Comma-separated list of Kafka brokers (default: `localhost:9092`)
 - `KAFKA_CLIENT_ID` - Kafka client ID (default: `ilert-mcp-connector`)
-- `KAFKA_AUTH_TYPE` - Authentication type: `none`, `plain`, `scram-sha-256`, `scram-sha-512`, `ssl`, `sasl_ssl` (default: `none`)
-- `KAFKA_USERNAME` - Kafka username for SASL authentication (required for `plain`, `scram-sha-256`, `scram-sha-512`, `sasl_ssl`)
-- `KAFKA_PASSWORD` - Kafka password for SASL authentication (required for `plain`, `scram-sha-256`, `scram-sha-512`, `sasl_ssl`)
-- `KAFKA_SSL_CERT_LOCATION` - Path to client certificate file (required for `ssl` and `sasl_ssl`)
-- `KAFKA_SSL_KEY_LOCATION` - Path to client private key file (required for `ssl` and `sasl_ssl`)
+- `KAFKA_AUTH_TYPE` - Authentication type: `NONE`, `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `SSL`, `SASL_SSL` (default: `NONE`). Case-insensitive, but uppercase is recommended.
+  - If `KAFKA_USERNAME` and `KAFKA_PASSWORD` are provided but `KAFKA_AUTH_TYPE` is not set, it defaults to `PLAIN`
+- `KAFKA_USERNAME` - Kafka username for SASL authentication (required for `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `SASL_SSL`)
+- `KAFKA_PASSWORD` - Kafka password for SASL authentication (required for `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `SASL_SSL`)
+- `KAFKA_SSL_CERT_LOCATION` - Path to client certificate file (required for `SSL` and `SASL_SSL`)
+- `KAFKA_SSL_KEY_LOCATION` - Path to client private key file (required for `SSL` and `SASL_SSL`)
 - `KAFKA_SSL_CA_LOCATION` - Path to CA certificate file (optional, recommended)
 - `KAFKA_SSL_KEY_PASSWORD` - Password for encrypted private key (optional)
 - `KAFKA_SSL_INSECURE_SKIP_TLS` - Skip TLS certificate verification (default: `false`, not recommended for production)
+- `KAFKA_LOG_LEVEL` - librdkafka log level: `0` (emergency) to `7` (debug) (default: `6` - info). librdkafka logs are integrated with zerolog and appear in the same format as application logs.
 
 ### MySQL Configuration
 
@@ -136,6 +141,9 @@ go build -o ilert-mcp-connector .
 # Set environment variables
 export KAFKA_ENABLED=true
 export KAFKA_BROKERS=localhost:9092
+export KAFKA_AUTH_TYPE=PLAIN
+export KAFKA_USERNAME=myuser
+export KAFKA_PASSWORD=mypassword
 export MYSQL_ENABLED=true
 export MYSQL_HOST=localhost
 export MYSQL_USER=root
@@ -175,6 +183,9 @@ make docker-run PORT=8383
 docker run -p 8383:8383 \
   -e KAFKA_ENABLED=true \
   -e KAFKA_BROKERS=kafka1:9092,kafka2:9092 \
+  -e KAFKA_AUTH_TYPE=PLAIN \
+  -e KAFKA_USERNAME=myuser \
+  -e KAFKA_PASSWORD=mypassword \
   -e MYSQL_ENABLED=true \
   -e MYSQL_HOST=mysql \
   -e MYSQL_USER=root \
@@ -213,6 +224,18 @@ spec:
           value: "true"
         - name: KAFKA_BROKERS
           value: "kafka:9092"
+        - name: KAFKA_AUTH_TYPE
+          value: "PLAIN"
+        - name: KAFKA_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secret
+              key: username
+        - name: KAFKA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secret
+              key: password
         - name: MYSQL_ENABLED
           value: "true"
         - name: MYSQL_HOST

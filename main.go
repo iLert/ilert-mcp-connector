@@ -19,6 +19,7 @@ func main() {
 
 	initLogger()
 	initAuth()
+	initMetrics()
 	cfg := LoadConfig()
 
 	log.Info().
@@ -34,6 +35,7 @@ func main() {
 
 	router.GET("/health", healthHandler)
 	router.GET("/version", versionHandler)
+	router.GET("/metrics", metricsHandler())
 
 	protected := router.Group("/")
 	protected.Use(AuthMiddleware())

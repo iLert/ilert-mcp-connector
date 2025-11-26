@@ -84,6 +84,7 @@ func (h *ClickHouseHandler) GetDatabases(c *gin.Context) {
 	defer cancel()
 
 	rows, err := h.conn.Query(ctx, "SHOW DATABASES")
+	recordClickHouseOperation("get_databases", err)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to query ClickHouse databases")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -119,6 +120,7 @@ func (h *ClickHouseHandler) GetTables(c *gin.Context) {
 
 	query := fmt.Sprintf("SELECT name FROM system.tables WHERE database = '%s'", database)
 	rows, err := h.conn.Query(ctx, query)
+	recordClickHouseOperation("get_tables", err)
 	if err != nil {
 		log.Error().Err(err).Str("database", database).Msg("Failed to query ClickHouse tables")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -156,7 +158,6 @@ func (h *ClickHouseHandler) DescribeTable(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Get table columns
 	query := fmt.Sprintf(`
 		SELECT
 			name, type, default_kind, default_expression, comment, codec_expression, ttl_expression
@@ -166,6 +167,7 @@ func (h *ClickHouseHandler) DescribeTable(c *gin.Context) {
 	`, database, table)
 
 	rows, err := h.conn.Query(ctx, query)
+	recordClickHouseOperation("describe_table", err)
 	if err != nil {
 		log.Error().Err(err).Str("database", database).Str("table", table).Msg("Failed to describe ClickHouse table")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -253,7 +255,6 @@ func (h *ClickHouseHandler) GetMetrics(c *gin.Context) {
 
 	metrics := ClickHouseMetrics{}
 
-	// Get system.metrics
 	metricsRows, err := h.conn.Query(ctx, "SELECT metric, value FROM system.metrics")
 	if err == nil {
 		defer metricsRows.Close()
@@ -418,5 +419,6 @@ func (h *ClickHouseHandler) GetMetrics(c *gin.Context) {
 		}
 	}
 
+	recordClickHouseOperation("get_metrics", nil)
 	c.JSON(http.StatusOK, metrics)
 }

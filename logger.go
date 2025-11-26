@@ -50,6 +50,11 @@ func AccessLogMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Skip logging for Prometheus scraping metrics endpoint
+		if path == "/metrics" && len(userAgent) >= 9 && userAgent[:9] == "Prometheus" {
+			return
+		}
+
 		// Log after request is processed
 		duration := time.Since(start)
 		clientIP := c.ClientIP()
