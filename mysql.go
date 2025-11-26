@@ -28,16 +28,16 @@ func NewMySQLHandler(config MySQLConfig) *MySQLHandler {
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		// Return handler even if connection fails - will be checked in ready endpoint
 		return &MySQLHandler{
 			config: config,
 			db:     nil,
 		}
 	}
 
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute)
 
 	return &MySQLHandler{
 		config: config,

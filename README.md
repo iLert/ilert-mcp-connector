@@ -79,6 +79,14 @@ Configuration is done via environment variables:
 - `KAFKA_ENABLED` - Enable Kafka endpoints (default: `false`)
 - `KAFKA_BROKERS` - Comma-separated list of Kafka brokers (default: `localhost:9092`)
 - `KAFKA_CLIENT_ID` - Kafka client ID (default: `ilert-mcp-connector`)
+- `KAFKA_AUTH_TYPE` - Authentication type: `none`, `plain`, `scram-sha-256`, `scram-sha-512`, `ssl`, `sasl_ssl` (default: `none`)
+- `KAFKA_USERNAME` - Kafka username for SASL authentication (required for `plain`, `scram-sha-256`, `scram-sha-512`, `sasl_ssl`)
+- `KAFKA_PASSWORD` - Kafka password for SASL authentication (required for `plain`, `scram-sha-256`, `scram-sha-512`, `sasl_ssl`)
+- `KAFKA_SSL_CERT_LOCATION` - Path to client certificate file (required for `ssl` and `sasl_ssl`)
+- `KAFKA_SSL_KEY_LOCATION` - Path to client private key file (required for `ssl` and `sasl_ssl`)
+- `KAFKA_SSL_CA_LOCATION` - Path to CA certificate file (optional, recommended)
+- `KAFKA_SSL_KEY_PASSWORD` - Password for encrypted private key (optional)
+- `KAFKA_SSL_INSECURE_SKIP_TLS` - Skip TLS certificate verification (default: `false`, not recommended for production)
 
 ### MySQL Configuration
 

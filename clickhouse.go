@@ -29,14 +29,12 @@ func NewClickHouseHandler(config ClickHouseConfig) *ClickHouseHandler {
 
 	conn, err := clickhouse.Open(options)
 	if err != nil {
-		// Return handler even if connection fails - will be checked in ready endpoint
 		return &ClickHouseHandler{
 			config: config,
 			conn:   nil,
 		}
 	}
 
-	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := conn.Ping(ctx); err != nil {
@@ -160,9 +158,9 @@ func (h *ClickHouseHandler) DescribeTable(c *gin.Context) {
 
 	// Get table columns
 	query := fmt.Sprintf(`
-		SELECT 
+		SELECT
 			name, type, default_kind, default_expression, comment, codec_expression, ttl_expression
-		FROM system.columns 
+		FROM system.columns
 		WHERE database = '%s' AND table = '%s'
 		ORDER BY position
 	`, database, table)
@@ -208,9 +206,9 @@ func (h *ClickHouseHandler) DescribeTable(c *gin.Context) {
 
 	// Get table info
 	infoQuery := fmt.Sprintf(`
-		SELECT 
+		SELECT
 			engine, total_rows, total_bytes, primary_key, sorting_key, partition_key
-		FROM system.tables 
+		FROM system.tables
 		WHERE database = '%s' AND name = '%s'
 	`, database, table)
 
@@ -302,7 +300,7 @@ func (h *ClickHouseHandler) GetMetrics(c *gin.Context) {
 
 	// Get system.replicas (replication status)
 	replicasRows, err := h.conn.Query(ctx, `
-		SELECT 
+		SELECT
 			database, table, is_leader, is_readonly, is_session_expired,
 			future_parts, parts_to_check, zookeeper_path, replica_path,
 			columns_version, queue_size, inserts_in_queue, merges_in_queue,
@@ -333,7 +331,7 @@ func (h *ClickHouseHandler) GetMetrics(c *gin.Context) {
 
 	// Get system.processes (running queries)
 	processesRows, err := h.conn.Query(ctx, `
-		SELECT 
+		SELECT
 			query_id, user, address, elapsed, read_rows, read_bytes,
 			total_rows_approx, written_rows, written_bytes, memory_usage, query
 		FROM system.processes
@@ -360,7 +358,7 @@ func (h *ClickHouseHandler) GetMetrics(c *gin.Context) {
 
 	// Get system.merges (merge operations)
 	mergesRows, err := h.conn.Query(ctx, `
-		SELECT 
+		SELECT
 			database, table, elapsed, progress, num_parts_to_merge,
 			rows_read, bytes_read_uncompressed, rows_written, bytes_written_uncompressed, memory_usage
 		FROM system.merges
@@ -386,7 +384,7 @@ func (h *ClickHouseHandler) GetMetrics(c *gin.Context) {
 
 	// Get system.mutations (mutation operations)
 	mutationsRows, err := h.conn.Query(ctx, `
-		SELECT 
+		SELECT
 			database, table, mutation_id, command, create_time, block_numbers,
 			parts_to_do, is_done, latest_failed_part, latest_fail_time, latest_fail_reason
 		FROM system.mutations

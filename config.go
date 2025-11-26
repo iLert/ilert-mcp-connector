@@ -11,9 +11,17 @@ type Config struct {
 }
 
 type KafkaConfig struct {
-	Enabled  bool
-	Brokers  []string
-	ClientID string
+	Enabled            bool
+	Brokers            []string
+	ClientID           string
+	AuthType           string // "none", "plain", "scram-sha-256", "scram-sha-512", "ssl", "sasl_ssl"
+	Username           string
+	Password           string
+	SSLKeyLocation     string // Path to client private key file
+	SSLCertLocation    string // Path to client certificate file
+	SSLCALocation      string // Path to CA certificate file
+	SSLKeyPassword     string // Password for encrypted private key (optional)
+	SSLInsecureSkipTLS bool   // Skip TLS certificate verification (not recommended for production)
 }
 
 type MySQLConfig struct {
@@ -37,9 +45,17 @@ type ClickHouseConfig struct {
 func LoadConfig() *Config {
 	cfg := &Config{
 		Kafka: KafkaConfig{
-			Enabled:  getEnvBool("KAFKA_ENABLED", false),
-			Brokers:  getEnvSlice("KAFKA_BROKERS", []string{"localhost:9092"}),
-			ClientID: getEnv("KAFKA_CLIENT_ID", "ilert-mcp-connector"),
+			Enabled:            getEnvBool("KAFKA_ENABLED", false),
+			Brokers:            getEnvSlice("KAFKA_BROKERS", []string{"localhost:9092"}),
+			ClientID:           getEnv("KAFKA_CLIENT_ID", "ilert-mcp-connector"),
+			AuthType:           getEnv("KAFKA_AUTH_TYPE", "none"),
+			Username:           getEnv("KAFKA_USERNAME", ""),
+			Password:           getEnv("KAFKA_PASSWORD", ""),
+			SSLKeyLocation:     getEnv("KAFKA_SSL_KEY_LOCATION", ""),
+			SSLCertLocation:    getEnv("KAFKA_SSL_CERT_LOCATION", ""),
+			SSLCALocation:      getEnv("KAFKA_SSL_CA_LOCATION", ""),
+			SSLKeyPassword:     getEnv("KAFKA_SSL_KEY_PASSWORD", ""),
+			SSLInsecureSkipTLS: getEnvBool("KAFKA_SSL_INSECURE_SKIP_TLS", false),
 		},
 		MySQL: MySQLConfig{
 			Enabled:  getEnvBool("MYSQL_ENABLED", false),
