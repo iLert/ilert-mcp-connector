@@ -44,7 +44,7 @@ func checkRedisConnection(config RedisConfig) error {
 	return client.Ping(ctx).Err()
 }
 
-func (h *RedisHandler) GetKeys(c *gin.Context) {
+func (h *RedisHandler) ScanKeys(c *gin.Context) {
 	databaseStr := c.Param("database")
 	database, err := strconv.Atoi(databaseStr)
 	if err != nil {
@@ -57,13 +57,23 @@ func (h *RedisHandler) GetKeys(c *gin.Context) {
 	defer client.Close()
 
 	pattern := c.DefaultQuery("pattern", "*")
+	cursorStr := c.DefaultQuery("cursor", "0")
+	cursor, err := strconv.ParseUint(cursorStr, 10, 64)
+	if err != nil {
+		log.Error().Err(err).Str("cursor", cursorStr).Msg("Invalid cursor value")
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid cursor value"})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	keys, err := client.Keys(ctx, pattern).Result()
-	recordRedisOperation("get_keys", err)
+	batchSize := int64(250)
+
+	keys, nextCursor, err := client.Scan(ctx, cursor, pattern, batchSize).Result()
+	recordRedisOperation("scan_keys", err)
 	if err != nil {
-		log.Error().Err(err).Str("pattern", pattern).Int("database", database).Msg("Failed to get Redis keys")
+		log.Error().Err(err).Str("pattern", pattern).Int("database", database).Msg("Failed to scan Redis keys")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
@@ -72,6 +82,8 @@ func (h *RedisHandler) GetKeys(c *gin.Context) {
 		Keys:    keys,
 		Count:   len(keys),
 		Pattern: pattern,
+		Cursor:  nextCursor,
+		HasMore: nextCursor != 0,
 	})
 }
 
