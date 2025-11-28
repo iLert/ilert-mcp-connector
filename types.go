@@ -273,9 +273,11 @@ type ClickHouseMutation struct {
 // Redis response types
 
 type KeysResponse struct {
-	Keys   []string `json:"keys"`
-	Count  int      `json:"count"`
-	Pattern string  `json:"pattern,omitempty"`
+	Keys    []string `json:"keys"`
+	Count   int      `json:"count"`
+	Pattern string   `json:"pattern,omitempty"`
+	Cursor  uint64   `json:"cursor"`
+	HasMore bool     `json:"hasMore"`
 }
 
 type KeyInfo struct {
