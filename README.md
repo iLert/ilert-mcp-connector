@@ -118,18 +118,17 @@ The MCP connector requires a MySQL user with specific read-only privileges. The 
 
 **Required Privileges:**
 
-The user needs only TWO privileges:
+The user needs the following privileges:
 
 1. **PROCESS** - Required for `SHOW PROCESSLIST` and `SHOW ENGINE INNODB STATUS`
 2. **REPLICATION CLIENT** - Required for `SHOW SLAVE STATUS` and `SHOW MASTER STATUS`
+3. **SELECT** - Required for `SHOW DATABASES`, `SHOW TABLES`, `DESCRIBE`, and `SHOW TABLE STATUS` on databases you want to query
 
 **Note:** The following operations work WITHOUT additional privileges:
-- `SHOW DATABASES` - works for any user (shows databases they can access)
-- `SHOW TABLES` - works if user has any privilege on the database
-- `DESCRIBE` / `SHOW COLUMNS` - works if user has any privilege on the table
-- `SHOW TABLE STATUS` - works if user has any privilege on the database
 - `SHOW STATUS` / `SHOW GLOBAL STATUS` - works for all users
 - `SHOW VARIABLES` / `SHOW GLOBAL VARIABLES` - works for all users
+
+**Important:** `SHOW DATABASES` only shows databases that the user has privileges on. To see and query databases, you need to grant SELECT privilege on them.
 
 **Example SQL Script:**
 
@@ -137,9 +136,17 @@ The user needs only TWO privileges:
 -- Create the user
 CREATE USER IF NOT EXISTS 'ilert_mcp_connector'@'%' IDENTIFIED BY 'your_secure_password_here';
 
--- Grant necessary privileges (only 2 privileges needed!)
+-- Grant global privileges for monitoring
 GRANT PROCESS ON *.* TO 'ilert_mcp_connector'@'%';
 GRANT REPLICATION CLIENT ON *.* TO 'ilert_mcp_connector'@'%';
+
+-- Grant SELECT on all databases (read-only access)
+-- Option 1: Grant on all databases
+GRANT SELECT ON *.* TO 'ilert_mcp_connector'@'%';
+
+-- Option 2: Grant on specific databases only (more secure)
+-- GRANT SELECT ON `database1`.* TO 'ilert_mcp_connector'@'%';
+-- GRANT SELECT ON `database2`.* TO 'ilert_mcp_connector'@'%';
 
 -- Apply changes
 FLUSH PRIVILEGES;
@@ -147,6 +154,12 @@ FLUSH PRIVILEGES;
 -- Verify grants
 SHOW GRANTS FOR 'ilert_mcp_connector'@'%';
 ```
+
+**Security Note:**
+
+- `SELECT` privilege is read-only - the user cannot modify data
+- For maximum security, grant SELECT only on specific databases you need to monitor
+- If you need to monitor all databases, use `GRANT SELECT ON *.*`
 
 ### ClickHouse Configuration
 

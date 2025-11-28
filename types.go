@@ -269,3 +269,44 @@ type ClickHouseMutation struct {
 	LatestFailTime   *string `json:"latestFailTime,omitempty"`
 	LatestFailReason *string `json:"latestFailReason,omitempty"`
 }
+
+// Redis response types
+
+type KeysResponse struct {
+	Keys   []string `json:"keys"`
+	Count  int      `json:"count"`
+	Pattern string  `json:"pattern,omitempty"`
+}
+
+type KeyInfo struct {
+	Key        string `json:"key"`
+	Type       string `json:"type"`
+	TTL        int64  `json:"ttl"`
+	Size       int64  `json:"size"`
+	Encoding   string `json:"encoding,omitempty"`
+	Error      *string `json:"error,omitempty"`
+}
+
+type KeyInfoResponse struct {
+	Info KeyInfo `json:"info"`
+}
+
+type RedisInfoResponse struct {
+	Info map[string]string `json:"info"`
+	Error *string          `json:"error,omitempty"`
+}
+
+type RedisDatabasesResponse struct {
+	Databases []int `json:"databases"`
+}
+
+type RedisMetrics struct {
+	Server      map[string]string `json:"server,omitempty"`
+	Memory      map[string]string `json:"memory,omitempty"`
+	Stats       map[string]string `json:"stats,omitempty"`
+	Clients     map[string]string `json:"clients,omitempty"`
+	Persistence map[string]string `json:"persistence,omitempty"`
+	Replication map[string]string `json:"replication,omitempty"`
+	CPU         map[string]string `json:"cpu,omitempty"`
+	Keyspace    map[string]string `json:"keyspace,omitempty"`
+}

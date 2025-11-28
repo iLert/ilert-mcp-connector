@@ -51,4 +51,19 @@ func checkToolConnectivity(cfg *Config) {
 				Msg("Successfully connected to ClickHouse")
 		}
 	}
+
+	if cfg.Redis.Enabled {
+		if err := checkRedisConnection(cfg.Redis); err != nil {
+			log.Error().
+				Err(err).
+				Str("host", cfg.Redis.Host).
+				Str("port", cfg.Redis.Port).
+				Msg("Failed to connect to Redis")
+		} else {
+			log.Info().
+				Str("host", cfg.Redis.Host).
+				Str("port", cfg.Redis.Port).
+				Msg("Successfully connected to Redis")
+		}
+	}
 }

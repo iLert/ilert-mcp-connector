@@ -40,6 +40,14 @@ var (
 		},
 		[]string{"operation", "status"},
 	)
+
+	redisOperationsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "redis_operations_total",
+			Help: "Total number of Redis operations",
+		},
+		[]string{"operation", "status"},
+	)
 )
 
 func initMetrics() {
@@ -47,6 +55,7 @@ func initMetrics() {
 	prometheus.MustRegister(mysqlOperationsTotal)
 	prometheus.MustRegister(mysqlConnectionsOpen)
 	prometheus.MustRegister(clickhouseOperationsTotal)
+	prometheus.MustRegister(redisOperationsTotal)
 }
 
 func metricsHandler() gin.HandlerFunc {
@@ -78,6 +87,14 @@ func recordClickHouseOperation(operation string, err error) {
 		status = "failed"
 	}
 	clickhouseOperationsTotal.WithLabelValues(operation, status).Inc()
+}
+
+func recordRedisOperation(operation string, err error) {
+	status := "success"
+	if err != nil {
+		status = "failed"
+	}
+	redisOperationsTotal.WithLabelValues(operation, status).Inc()
 }
 
 func updateMySQLConnectionMetrics(db *sql.DB) {

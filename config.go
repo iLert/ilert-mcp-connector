@@ -8,6 +8,7 @@ type Config struct {
 	Kafka      KafkaConfig
 	MySQL      MySQLConfig
 	ClickHouse ClickHouseConfig
+	Redis      RedisConfig
 }
 
 type KafkaConfig struct {
@@ -42,6 +43,13 @@ type ClickHouseConfig struct {
 	Database string
 }
 
+type RedisConfig struct {
+	Enabled  bool
+	Host     string
+	Port     string
+	Password string
+}
+
 func LoadConfig() *Config {
 	cfg := &Config{
 		Kafka: KafkaConfig{
@@ -72,6 +80,12 @@ func LoadConfig() *Config {
 			User:     getEnv("CLICKHOUSE_USER", "default"),
 			Password: getEnv("CLICKHOUSE_PASSWORD", ""),
 			Database: getEnv("CLICKHOUSE_DATABASE", "default"),
+		},
+		Redis: RedisConfig{
+			Enabled:  getEnvBool("REDIS_ENABLED", false),
+			Host:     getEnv("REDIS_HOST", "localhost"),
+			Port:     getEnv("REDIS_PORT", "6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
 		},
 	}
 	return cfg

@@ -44,6 +44,7 @@ func main() {
 	var kafkaHandler *KafkaHandler
 	var mysqlHandler *MySQLHandler
 	var clickhouseHandler *ClickHouseHandler
+	var redisHandler *RedisHandler
 
 	if cfg.Kafka.Enabled {
 		kafkaHandler = NewKafkaHandler(cfg.Kafka)
@@ -68,6 +69,15 @@ func main() {
 		protected.GET("/clickhouse/databases/:database/tables", clickhouseHandler.GetTables)
 		protected.GET("/clickhouse/databases/:database/tables/:table", clickhouseHandler.DescribeTable)
 		protected.GET("/clickhouse/metrics", clickhouseHandler.GetMetrics)
+	}
+
+	if cfg.Redis.Enabled {
+		redisHandler = NewRedisHandler(cfg.Redis)
+		protected.GET("/redis/databases", redisHandler.GetDatabases)
+		protected.GET("/redis/databases/:database/keys", redisHandler.GetKeys)
+		protected.GET("/redis/databases/:database/keys/:key/info", redisHandler.GetKeyInfo)
+		protected.GET("/redis/metrics", redisHandler.GetMetrics)
+		protected.GET("/redis/info", redisHandler.GetInfo)
 	}
 
 	port := os.Getenv("PORT")
@@ -117,6 +127,7 @@ func main() {
 			log.Debug().Msg("ClickHouse connection closed")
 		}
 	}
+
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -177,6 +188,15 @@ func readyHandler(cfg *Config) gin.HandlerFunc {
 				checks["clickhouse"] = err.Error()
 			} else {
 				checks["clickhouse"] = "ok"
+			}
+		}
+
+		if cfg.Redis.Enabled {
+			if err := checkRedisConnection(cfg.Redis); err != nil {
+				ready = false
+				checks["redis"] = err.Error()
+			} else {
+				checks["redis"] = "ok"
 			}
 		}
 
