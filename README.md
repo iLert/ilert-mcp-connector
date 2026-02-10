@@ -8,6 +8,7 @@ A HTTP server that exposes information from internal tools (Kafka, MySQL) via RE
 - **Kafka Integration**: List topics, describe topics, manage consumer groups, and monitor consumer lag
 - **MySQL Integration**: Query databases, tables, schemas, and metrics
 - **ClickHouse Integration**: Query databases, tables, schemas, and metrics
+- **Redis Integration**: Query databases, scan keys, get key info, and monitor metrics
 - **Configurable**: Enable/disable tools individually via environment variables
 - **Prometheus Metrics**: `/metrics` endpoint for monitoring (no authentication required)
 - **Structured Logging**: Uses zerolog with configurable log levels and formats
@@ -29,6 +30,7 @@ The following endpoints require authentication via the `Authorization` header:
 - All `/kafka/*` endpoints
 - All `/mysql/*` endpoints
 - All `/clickhouse/*` endpoints
+- All `/redis/*` endpoints
 
 The token can be provided in two ways:
 
@@ -65,6 +67,14 @@ curl -H "Authorization: YOUR_TOKEN" http://localhost:8383/kafka/topics
 - `GET /clickhouse/databases/:database/tables` - List tables in a database
 - `GET /clickhouse/databases/:database/tables/:table` - Describe table schema with columns and table info
 - `GET /clickhouse/metrics` - Get ClickHouse state and critical metrics (system.metrics, system.events, system.asynchronous_metrics, replicas, processes, merges, mutations)
+
+### Redis Endpoints (when `REDIS_ENABLED=true`) - **Requires Authentication**
+
+- `GET /redis/databases` - List all Redis databases
+- `GET /redis/databases/:database/keys` - Scan keys in a database (supports `pattern` and `cursor` query parameters)
+- `GET /redis/databases/:database/keys/:key/info` - Get detailed information about a specific key (type, TTL, size, encoding)
+- `GET /redis/info` - Get Redis INFO output as key-value pairs
+- `GET /redis/metrics` - Get Redis metrics (parsed from INFO command)
 
 ## Configuration
 
@@ -169,6 +179,13 @@ SHOW GRANTS FOR 'ilert_mcp_connector'@'%';
 - `CLICKHOUSE_USER` - ClickHouse user (default: `default`)
 - `CLICKHOUSE_PASSWORD` - ClickHouse password (default: empty)
 - `CLICKHOUSE_DATABASE` - ClickHouse database name (default: `default`)
+
+### Redis Configuration
+
+- `REDIS_ENABLED` - Enable Redis endpoints (default: `false`)
+- `REDIS_HOST` - Redis host (default: `localhost`)
+- `REDIS_PORT` - Redis port (default: `6379`)
+- `REDIS_PASSWORD` - Redis password (default: empty)
 
 ## Building
 

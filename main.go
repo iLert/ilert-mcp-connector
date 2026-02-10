@@ -21,6 +21,12 @@ func main() {
 	initAuth()
 	initMetrics()
 	cfg := LoadConfig()
+	
+	log.Debug().
+		Bool("redis_enabled", cfg.Redis.Enabled).
+		Str("redis_host", cfg.Redis.Host).
+		Str("redis_port", cfg.Redis.Port).
+		Msg("Loaded Redis configuration")
 
 	log.Info().
 		Str("version", Version).
@@ -72,12 +78,19 @@ func main() {
 	}
 
 	if cfg.Redis.Enabled {
+		log.Info().
+			Str("host", cfg.Redis.Host).
+			Str("port", cfg.Redis.Port).
+			Msg("Registering Redis routes")
 		redisHandler = NewRedisHandler(cfg.Redis)
 		protected.GET("/redis/databases", redisHandler.GetDatabases)
 		protected.GET("/redis/databases/:database/keys", redisHandler.ScanKeys)
 		protected.GET("/redis/databases/:database/keys/:key/info", redisHandler.GetKeyInfo)
 		protected.GET("/redis/metrics", redisHandler.GetMetrics)
 		protected.GET("/redis/info", redisHandler.GetInfo)
+		log.Info().Msg("Redis routes registered successfully")
+	} else {
+		log.Debug().Msg("Redis is disabled, skipping route registration")
 	}
 
 	port := os.Getenv("PORT")
