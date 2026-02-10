@@ -296,8 +296,8 @@ func (h *RedisHandler) GetDatabases(c *gin.Context) {
 	configMap, err := client.ConfigGet(ctx, "databases").Result()
 	recordRedisOperation("get_databases", err)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to get Redis databases config")
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		log.Debug().Err(err).Msg("CONFIG command not available, using default database 0")
+		c.JSON(http.StatusOK, RedisDatabasesResponse{Databases: []int{0}})
 		return
 	}
 
