@@ -48,6 +48,8 @@ type RedisConfig struct {
 	Host     string
 	Port     string
 	Password string
+	// Enables tools that can read values
+	EnableSensitiveTools bool
 }
 
 func LoadConfig() *Config {
@@ -82,10 +84,11 @@ func LoadConfig() *Config {
 			Database: getEnv("CLICKHOUSE_DATABASE", "default"),
 		},
 		Redis: RedisConfig{
-			Enabled:  getEnvBool("REDIS_ENABLED", false),
-			Host:     getEnv("REDIS_HOST", "localhost"),
-			Port:     getEnv("REDIS_PORT", "6379"),
-			Password: getEnv("REDIS_PASSWORD", ""),
+			Enabled:              getEnvBool("REDIS_ENABLED", false),
+			Host:                 getEnv("REDIS_HOST", "localhost"),
+			Port:                 getEnv("REDIS_PORT", "6379"),
+			Password:             getEnv("REDIS_PASSWORD", ""),
+			EnableSensitiveTools: getEnvBool("REDIS_ENABLE_SENSITIVE_TOOLS", false),
 		},
 	}
 	return cfg

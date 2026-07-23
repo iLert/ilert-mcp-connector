@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,6 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	maxKeys       = 20
+	maxValueBytes = 1024
 )
 
 type RedisHandler struct {
@@ -162,6 +168,94 @@ func (h *RedisHandler) GetKeyInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, KeyInfoResponse{Info: info})
+}
+
+func (h *RedisHandler) GetKeyValues(c *gin.Context) {
+	if !h.config.EnableSensitiveTools {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Error: "This endpoint is disabled in the settings",
+		})
+		return
+	}
+
+	databaseStr := c.Param("database")
+	database, err := strconv.Atoi(databaseStr)
+	if err != nil {
+		log.Error().Err(err).Str("database", databaseStr).Msg("Invalid database number")
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid database number"})
+		return
+	}
+
+	raw := c.Query("keys")
+	var keys []string
+	if err := json.Unmarshal([]byte(raw), &keys); err != nil {
+		log.Error().Err(err).Str("keys", raw).Msg("Invalid keys parameter")
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid keys parameter"})
+		return
+	}
+	if len(keys) == 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid keys parameter"})
+		return
+	}
+	if len(keys) > maxKeys {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Too many keys (max 20)"})
+		return
+	}
+
+	client := h.getClient(database)
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	vals, err := client.MGet(ctx, keys...).Result()
+	recordRedisOperation("get_key_values", err)
+	if err != nil {
+		log.Error().Err(err).Int("database", database).Msg("Failed to get Redis key values")
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	// MGET returns nil for both missing keys and keys holding a non-string type.
+	// Look up TYPE for the nil entries so we can distinguish "missing" from
+	// "exists but non-string" (reported via skippedNonString).
+	types := make([]string, len(keys))
+	for i := range keys {
+		if i < len(vals) && vals[i] == nil {
+			if t, terr := client.Type(ctx, keys[i]).Result(); terr == nil {
+				types[i] = t
+			}
+		}
+	}
+
+	out := buildKeyValues(keys, vals, types)
+	c.JSON(http.StatusOK, ValuesResponse{Values: out, Count: len(out)})
+}
+
+func buildKeyValues(keys []string, vals []interface{}, types []string) []KeyValue {
+	out := make([]KeyValue, len(keys))
+	for i, key := range keys {
+		kv := KeyValue{Key: key}
+		if i < len(vals) {
+			if s, ok := vals[i].(string); ok {
+				kv.Found = true
+				kv.Size = len(s)
+				if kv.Size > maxValueBytes {
+					s = s[:maxValueBytes]
+					kv.Truncated = true
+				}
+				kv.Value = &s
+				out[i] = kv
+				continue
+			}
+		}
+		// value is nil: distinguish a non-string key from a missing key.
+		if i < len(types) && types[i] != "" && types[i] != "none" {
+			kv.SkippedNonString = true
+		}
+		out[i] = kv
+	}
+	return out
 }
 
 func (h *RedisHandler) GetMetrics(c *gin.Context) {

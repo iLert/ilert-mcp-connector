@@ -281,21 +281,35 @@ type KeysResponse struct {
 }
 
 type KeyInfo struct {
-	Key        string `json:"key"`
-	Type       string `json:"type"`
-	TTL        int64  `json:"ttl"`
-	Size       int64  `json:"size"`
-	Encoding   string `json:"encoding,omitempty"`
-	Error      *string `json:"error,omitempty"`
+	Key      string  `json:"key"`
+	Type     string  `json:"type"`
+	TTL      int64   `json:"ttl"`
+	Size     int64   `json:"size"`
+	Encoding string  `json:"encoding,omitempty"`
+	Error    *string `json:"error,omitempty"`
 }
 
 type KeyInfoResponse struct {
 	Info KeyInfo `json:"info"`
 }
 
+type KeyValue struct {
+	Key              string  `json:"key"`
+	Value            *string `json:"value"`            // nil when missing / non-string
+	Found            bool    `json:"found"`            // true only when the key holds a string value
+	SkippedNonString bool    `json:"skippedNonString"` // true when the key exists but holds a non-string type
+	Truncated        bool    `json:"truncated"`
+	Size             int     `json:"size"` // original value size in bytes (0 when missing / skipped)
+}
+
+type ValuesResponse struct {
+	Values []KeyValue `json:"values"`
+	Count  int        `json:"count"`
+}
+
 type RedisInfoResponse struct {
-	Info map[string]string `json:"info"`
-	Error *string          `json:"error,omitempty"`
+	Info  map[string]string `json:"info"`
+	Error *string           `json:"error,omitempty"`
 }
 
 type RedisDatabasesResponse struct {
