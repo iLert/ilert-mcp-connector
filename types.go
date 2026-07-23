@@ -293,18 +293,23 @@ type KeyInfoResponse struct {
 	Info KeyInfo `json:"info"`
 }
 
+const (
+	KeyValueStatusOK        = "OK"
+	KeyValueStatusMissing   = "MISSING"
+	KeyValueStatusNonString = "NON_STRING" // key exists but holds a non-string type
+	KeyValueStatusBinary    = "BINARY"     // value is not valid UTF-8; value is null
+)
+
 type KeyValue struct {
-	Key              string  `json:"key"`
-	Value            *string `json:"value"`            // nil when missing / non-string
-	Found            bool    `json:"found"`            // true only when the key holds a string value
-	SkippedNonString bool    `json:"skippedNonString"` // true when the key exists but holds a non-string type
-	Truncated        bool    `json:"truncated"`
-	Size             int     `json:"size"` // original value size in bytes (0 when missing / skipped)
+	Key       string  `json:"key"`
+	Value     *string `json:"value"` // nil unless status is OK
+	Status    string  `json:"status"`
+	Truncated bool    `json:"truncated"`
+	Size      int     `json:"size"` // original value size in bytes (0 when missing / non-string)
 }
 
 type ValuesResponse struct {
 	Values []KeyValue `json:"values"`
-	Count  int        `json:"count"`
 }
 
 type RedisInfoResponse struct {

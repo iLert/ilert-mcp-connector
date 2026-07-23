@@ -17,9 +17,9 @@ func TestBuildKeyValues(t *testing.T) {
 
 	// MGET returns nil for both missing and non-string keys; `types` (populated by
 	// the handler only for nil entries) disambiguates them.
-	keys := []string{"missing", "small", "large", "nonstring"}
-	vals := []interface{}{nil, "hello", large, nil}
-	types := []string{"none", "", "", "list"}
+	keys := []string{"missing", "small", "large", "nonstring", "binary"}
+	vals := []interface{}{nil, "hello", large, nil, "\xff\xfe\x01data"}
+	types := []string{"none", "", "", "list", ""}
 
 	out := buildKeyValues(keys, vals, types)
 
@@ -27,30 +27,35 @@ func TestBuildKeyValues(t *testing.T) {
 		t.Fatalf("expected %d entries, got %d", len(keys), len(out))
 	}
 
-	// missing key -> not found, not skipped, nil value
-	if out[0].Found || out[0].SkippedNonString || out[0].Value != nil {
-		t.Errorf("missing key: expected found=false skipped=false value=nil, got %+v", out[0])
+	// missing key -> status MISSING, nil value
+	if out[0].Status != KeyValueStatusMissing || out[0].Value != nil {
+		t.Errorf("missing key: expected status=MISSING value=nil, got %+v", out[0])
 	}
 
-	// small string -> found, untruncated, size == byte length
-	if !out[1].Found || out[1].Truncated || out[1].Size != len("hello") || *out[1].Value != "hello" {
+	// small string -> status OK, untruncated, size == byte length
+	if out[1].Status != KeyValueStatusOK || out[1].Truncated || out[1].Size != len("hello") || out[1].Value == nil || *out[1].Value != "hello" {
 		t.Errorf("small key: unexpected result %+v", out[1])
 	}
 
-	// large string -> found, truncated to maxValueBytes, size == original length
-	if !out[2].Found || !out[2].Truncated {
-		t.Errorf("large key: expected found=true truncated=true, got %+v", out[2])
+	// large string -> status OK, truncated to maxValueBytes, size == original length
+	if out[2].Status != KeyValueStatusOK || !out[2].Truncated || out[2].Value == nil {
+		t.Errorf("large key: expected status=OK truncated=true with value, got %+v", out[2])
 	}
 	if out[2].Size != len(large) {
 		t.Errorf("large key: expected size=%d (original), got %d", len(large), out[2].Size)
 	}
-	if len(*out[2].Value) != maxValueBytes {
-		t.Errorf("large key: expected value truncated to %d bytes, got %d", maxValueBytes, len(*out[2].Value))
+	if len(*out[2].Value) > maxValueBytes {
+		t.Errorf("large key: expected value truncated to at most %d bytes, got %d", maxValueBytes, len(*out[2].Value))
 	}
 
-	// non-string key -> not found, skippedNonString=true, nil value
-	if out[3].Found || !out[3].SkippedNonString || out[3].Value != nil {
-		t.Errorf("nonstring key: expected found=false skipped=true value=nil, got %+v", out[3])
+	// non-string key -> status NON_STRING, nil value
+	if out[3].Status != KeyValueStatusNonString || out[3].Value != nil {
+		t.Errorf("nonstring key: expected status=NON_STRING value=nil, got %+v", out[3])
+	}
+
+	// non-UTF-8 value -> status BINARY, nil value, size == byte length
+	if out[4].Status != KeyValueStatusBinary || out[4].Value != nil || out[4].Size != len("\xff\xfe\x01data") {
+		t.Errorf("binary key: expected status=BINARY value=nil, got %+v", out[4])
 	}
 }
 

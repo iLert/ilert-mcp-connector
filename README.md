@@ -73,7 +73,7 @@ curl -H "Authorization: YOUR_TOKEN" http://localhost:8383/kafka/topics
 - `GET /redis/databases` - List all Redis databases
 - `GET /redis/databases/:database/keys` - Scan keys in a database (supports `pattern` and `cursor` query parameters)
 - `GET /redis/databases/:database/keys/:key/info` - Get detailed information about a specific key (type, TTL, size, encoding)
-- `GET /redis/databases/:database/values` - Read the values of multiple string keys (`keys` = JSON array, max 20; each value capped at 1KB). Requires `REDIS_ENABLE_SENSITIVE_TOOLS=true`, otherwise returns `403`.
+- `GET /redis/databases/:database/values` - Read the values of multiple string keys (`keys` = JSON array, max 20; value capped at 1KB). Requires `REDIS_ENABLE_SENSITIVE_TOOLS=true`.
 - `GET /redis/info` - Get Redis INFO output as key-value pairs
 - `GET /redis/metrics` - Get Redis metrics (parsed from INFO command)
 

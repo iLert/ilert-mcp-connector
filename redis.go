@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -229,29 +231,34 @@ func (h *RedisHandler) GetKeyValues(c *gin.Context) {
 	}
 
 	out := buildKeyValues(keys, vals, types)
-	c.JSON(http.StatusOK, ValuesResponse{Values: out, Count: len(out)})
+	c.JSON(http.StatusOK, ValuesResponse{Values: out})
 }
 
 func buildKeyValues(keys []string, vals []interface{}, types []string) []KeyValue {
 	out := make([]KeyValue, len(keys))
 	for i, key := range keys {
-		kv := KeyValue{Key: key}
+		kv := KeyValue{Key: key, Status: KeyValueStatusMissing}
 		if i < len(vals) {
 			if s, ok := vals[i].(string); ok {
-				kv.Found = true
 				kv.Size = len(s)
+				if !utf8.ValidString(s) {
+					kv.Status = KeyValueStatusBinary
+					out[i] = kv
+					continue
+				}
 				if kv.Size > maxValueBytes {
-					s = s[:maxValueBytes]
+					s = strings.ToValidUTF8(s[:maxValueBytes], "")
 					kv.Truncated = true
 				}
 				kv.Value = &s
+				kv.Status = KeyValueStatusOK
 				out[i] = kv
 				continue
 			}
 		}
 		// value is nil: distinguish a non-string key from a missing key.
 		if i < len(types) && types[i] != "" && types[i] != "none" {
-			kv.SkippedNonString = true
+			kv.Status = KeyValueStatusNonString
 		}
 		out[i] = kv
 	}
