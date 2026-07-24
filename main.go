@@ -21,7 +21,7 @@ func main() {
 	initAuth()
 	initMetrics()
 	cfg := LoadConfig()
-	
+
 	log.Debug().
 		Bool("redis_enabled", cfg.Redis.Enabled).
 		Str("redis_host", cfg.Redis.Host).
@@ -82,6 +82,7 @@ func main() {
 		protected.GET("/redis/databases", redisHandler.GetDatabases)
 		protected.GET("/redis/databases/:database/keys", redisHandler.ScanKeys)
 		protected.GET("/redis/databases/:database/keys/:key/info", redisHandler.GetKeyInfo)
+		protected.GET("/redis/databases/:database/values", redisHandler.GetKeyValues)
 		protected.GET("/redis/metrics", redisHandler.GetMetrics)
 		protected.GET("/redis/info", redisHandler.GetInfo)
 	}
