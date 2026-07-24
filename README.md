@@ -1,12 +1,13 @@
 # ilert MCP Connector
 
-A HTTP server that exposes information from internal tools (Kafka, MySQL) via REST endpoints. Designed to be used with ilert and MCP servers.
+A HTTP server that exposes information from internal tools (Kafka, MySQL, PostgreSQL, ClickHouse, Redis) via REST endpoints. Designed to be used with ilert and MCP servers.
 
 ## Features
 
 - **Health and Readiness Endpoints**: Kubernetes-ready with `/health` and `/ready` endpoints
 - **Kafka Integration**: List topics, describe topics, manage consumer groups, and monitor consumer lag
 - **MySQL Integration**: Query databases, tables, schemas, and metrics
+- **PostgreSQL Integration**: Query databases, tables, schemas, and metrics
 - **ClickHouse Integration**: Query databases, tables, schemas, and metrics
 - **Redis Integration**: Query databases, scan keys, get key info, and monitor metrics
 - **Configurable**: Enable/disable tools individually via environment variables
@@ -29,6 +30,7 @@ The following endpoints require authentication via the `Authorization` header:
 - `/ready` - Readiness check endpoint (contains connection status and potential error messages)
 - All `/kafka/*` endpoints
 - All `/mysql/*` endpoints
+- All `/postgres/*` endpoints
 - All `/clickhouse/*` endpoints
 - All `/redis/*` endpoints
 
@@ -60,6 +62,24 @@ curl -H "Authorization: YOUR_TOKEN" http://localhost:8383/kafka/topics
 - `GET /mysql/databases/:database/tables` - List tables in a database
 - `GET /mysql/databases/:database/tables/:table` - Describe table schema
 - `GET /mysql/metrics` - Get MySQL metrics (InnoDB stats, global status, variables)
+
+### PostgreSQL Endpoints (when `POSTGRES_ENABLED=true`) - **Requires Authentication**
+
+- `GET /postgres/databases` - List all databases
+- `GET /postgres/databases/:database/tables` - List tables in a database (returned as `schema.table`)
+- `GET /postgres/databases/:database/tables/:table` - Describe table schema with columns and table statistics (`:table` accepts `schema.table`, bare names default to the `public` schema)
+- `GET /postgres/metrics` - Get PostgreSQL metrics:
+  - `activity` - current sessions from `pg_stat_activity`
+  - `databaseStats` - per-database stats from `pg_stat_database` (transactions, cache hit ratio, deadlocks, temp files)
+  - `settings` - curated configuration values from `pg_settings`
+  - `replication` - `pg_stat_replication` replicas, recovery status, replay lag
+  - `connections` - connection counts per client `application_name` (with per-state breakdown), per user, per database, per state, plus `max_connections` headroom
+  - `locks` - total/ungranted lock counts and blocked queries with blocking PIDs
+  - `bgwriter` - checkpoint and buffer statistics (supports both pre- and post-PG17 catalogs)
+  - `vacuum` - top tables by dead tuples and oldest transaction ID age
+  - `sessions` - long-running queries and idle-in-transaction sessions exceeding a threshold (default 60s, override with `?session-threshold=<seconds>`)
+
+Note: PostgreSQL does not support cross-database queries over a single connection. When `:database` differs from `POSTGRES_DATABASE`, the connector opens a short-lived connection to that database (the configured user needs `CONNECT` privilege on it).
 
 ### ClickHouse Endpoints (when `CLICKHOUSE_ENABLED=true`) - **Requires Authentication**
 
@@ -111,6 +131,28 @@ Configuration is done via environment variables:
 - `MYSQL_USER` - MySQL user (default: `root`)
 - `MYSQL_PASSWORD` - MySQL password (default: empty)
 - `MYSQL_DATABASE` - MySQL database name (default: empty)
+
+### PostgreSQL Configuration
+
+- `POSTGRES_ENABLED` - Enable PostgreSQL endpoints (default: `false`)
+- `POSTGRES_HOST` - PostgreSQL host (default: `localhost`)
+- `POSTGRES_PORT` - PostgreSQL port (default: `5432`)
+- `POSTGRES_USER` - PostgreSQL user (default: `postgres`)
+- `POSTGRES_PASSWORD` - PostgreSQL password (default: empty)
+- `POSTGRES_DATABASE` - PostgreSQL database name (default: `postgres`)
+- `POSTGRES_SSLMODE` - PostgreSQL SSL mode: `disable`, `require`, `verify-ca`, `verify-full` (default: `disable`)
+
+#### PostgreSQL User Setup
+
+The connector only reads from system catalogs and statistics views. A regular user sees its own sessions in `pg_stat_activity`; to see all sessions, full query text, and replication details, grant the monitoring role:
+
+```sql
+CREATE USER mcp_connector WITH PASSWORD 'your_password';
+GRANT pg_monitor TO mcp_connector;
+GRANT CONNECT ON DATABASE your_database TO mcp_connector;
+```
+
+`pg_monitor` (PostgreSQL 10+) covers `pg_stat_activity`, `pg_stat_replication`, `pg_stat_database`, `pg_stat_bgwriter`/`pg_stat_checkpointer`, and `pg_settings`. `CONNECT` is needed on every database that should be reachable via the `:database` path parameter.
 
 #### MySQL User Setup
 

@@ -21,7 +21,7 @@ func main() {
 	initAuth()
 	initMetrics()
 	cfg := LoadConfig()
-	
+
 	log.Debug().
 		Bool("redis_enabled", cfg.Redis.Enabled).
 		Str("redis_host", cfg.Redis.Host).
@@ -49,6 +49,7 @@ func main() {
 
 	var kafkaHandler *KafkaHandler
 	var mysqlHandler *MySQLHandler
+	var postgresHandler *PostgresHandler
 	var clickhouseHandler *ClickHouseHandler
 	var redisHandler *RedisHandler
 
@@ -67,6 +68,14 @@ func main() {
 		protected.GET("/mysql/databases/:database/tables", mysqlHandler.GetTables)
 		protected.GET("/mysql/databases/:database/tables/:table", mysqlHandler.DescribeTable)
 		protected.GET("/mysql/metrics", mysqlHandler.GetMetrics)
+	}
+
+	if cfg.Postgres.Enabled {
+		postgresHandler = NewPostgresHandler(cfg.Postgres)
+		protected.GET("/postgres/databases", postgresHandler.GetDatabases)
+		protected.GET("/postgres/databases/:database/tables", postgresHandler.GetTables)
+		protected.GET("/postgres/databases/:database/tables/:table", postgresHandler.DescribeTable)
+		protected.GET("/postgres/metrics", postgresHandler.GetMetrics)
 	}
 
 	if cfg.ClickHouse.Enabled {
@@ -123,6 +132,14 @@ func main() {
 			log.Error().Err(err).Msg("Error closing MySQL connection pool")
 		} else {
 			log.Debug().Msg("MySQL connection pool closed")
+		}
+	}
+
+	if postgresHandler != nil && postgresHandler.db != nil {
+		if err := postgresHandler.db.Close(); err != nil {
+			log.Error().Err(err).Msg("Error closing PostgreSQL connection pool")
+		} else {
+			log.Debug().Msg("PostgreSQL connection pool closed")
 		}
 	}
 
@@ -184,6 +201,15 @@ func readyHandler(cfg *Config) gin.HandlerFunc {
 				checks["mysql"] = err.Error()
 			} else {
 				checks["mysql"] = "ok"
+			}
+		}
+
+		if cfg.Postgres.Enabled {
+			if err := checkPostgresConnection(cfg.Postgres); err != nil {
+				ready = false
+				checks["postgres"] = err.Error()
+			} else {
+				checks["postgres"] = "ok"
 			}
 		}
 

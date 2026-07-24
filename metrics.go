@@ -33,6 +33,22 @@ var (
 		[]string{"state"},
 	)
 
+	postgresOperationsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "postgres_operations_total",
+			Help: "Total number of PostgreSQL operations",
+		},
+		[]string{"operation", "status"},
+	)
+
+	postgresConnectionsOpen = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "postgres_connections_open",
+			Help: "Number of open PostgreSQL connections",
+		},
+		[]string{"state"},
+	)
+
 	clickhouseOperationsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "clickhouse_operations_total",
@@ -54,6 +70,8 @@ func initMetrics() {
 	prometheus.MustRegister(kafkaOperationsTotal)
 	prometheus.MustRegister(mysqlOperationsTotal)
 	prometheus.MustRegister(mysqlConnectionsOpen)
+	prometheus.MustRegister(postgresOperationsTotal)
+	prometheus.MustRegister(postgresConnectionsOpen)
 	prometheus.MustRegister(clickhouseOperationsTotal)
 	prometheus.MustRegister(redisOperationsTotal)
 }
@@ -81,6 +99,14 @@ func recordMySQLOperation(operation string, err error) {
 	mysqlOperationsTotal.WithLabelValues(operation, status).Inc()
 }
 
+func recordPostgresOperation(operation string, err error) {
+	status := "success"
+	if err != nil {
+		status = "failed"
+	}
+	postgresOperationsTotal.WithLabelValues(operation, status).Inc()
+}
+
 func recordClickHouseOperation(operation string, err error) {
 	status := "success"
 	if err != nil {
@@ -105,4 +131,14 @@ func updateMySQLConnectionMetrics(db *sql.DB) {
 	mysqlConnectionsOpen.WithLabelValues("open").Set(float64(stats.OpenConnections))
 	mysqlConnectionsOpen.WithLabelValues("idle").Set(float64(stats.Idle))
 	mysqlConnectionsOpen.WithLabelValues("in_use").Set(float64(stats.InUse))
+}
+
+func updatePostgresConnectionMetrics(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	stats := db.Stats()
+	postgresConnectionsOpen.WithLabelValues("open").Set(float64(stats.OpenConnections))
+	postgresConnectionsOpen.WithLabelValues("idle").Set(float64(stats.Idle))
+	postgresConnectionsOpen.WithLabelValues("in_use").Set(float64(stats.InUse))
 }

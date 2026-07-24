@@ -162,6 +162,184 @@ type MetricsResponse struct {
 	Locks       *LockInfo          `json:"locks,omitempty"`
 }
 
+// PostgreSQL response types
+
+type PostgresColumnInfo struct {
+	Name       string  `json:"name"`
+	Type       string  `json:"type"`
+	Nullable   string  `json:"nullable"`
+	Default    *string `json:"default,omitempty"`
+	MaxLength  *int64  `json:"maxLength,omitempty"`
+	Position   int64   `json:"position"`
+	IsIdentity string  `json:"isIdentity"`
+}
+
+type PostgresTableStats struct {
+	LiveTuples       int64   `json:"liveTuples"`
+	DeadTuples       int64   `json:"deadTuples"`
+	SeqScans         int64   `json:"seqScans"`
+	IndexScans       int64   `json:"indexScans"`
+	LastVacuum       *string `json:"lastVacuum,omitempty"`
+	LastAutovacuum   *string `json:"lastAutovacuum,omitempty"`
+	LastAnalyze      *string `json:"lastAnalyze,omitempty"`
+	LastAutoanalyze  *string `json:"lastAutoanalyze,omitempty"`
+	TotalSizeBytes   int64   `json:"totalSizeBytes"`
+	TableSizeBytes   int64   `json:"tableSizeBytes"`
+	IndexesSizeBytes int64   `json:"indexesSizeBytes"`
+	EstimatedRows    float64 `json:"estimatedRows"`
+}
+
+type PostgresTableDetailResponse struct {
+	Database string               `json:"database"`
+	Schema   string               `json:"schema"`
+	Table    string               `json:"table"`
+	Columns  []PostgresColumnInfo `json:"columns"`
+	Stats    *PostgresTableStats  `json:"stats,omitempty"`
+}
+
+type ApplicationConnections struct {
+	ApplicationName string           `json:"applicationName"`
+	Count           int64            `json:"count"`
+	States          map[string]int64 `json:"states"`
+}
+
+type UserConnections struct {
+	User  string `json:"user"`
+	Count int64  `json:"count"`
+}
+
+type DatabaseConnections struct {
+	Database string `json:"database"`
+	Count    int64  `json:"count"`
+}
+
+type PostgresConnectionStats struct {
+	Total                int64                    `json:"total"`
+	MaxConnections       int64                    `json:"maxConnections"`
+	Available            int64                    `json:"available"`
+	ReservedForSuperuser int64                    `json:"reservedForSuperuser"`
+	ByApplication        []ApplicationConnections `json:"byApplication"`
+	ByUser               []UserConnections        `json:"byUser"`
+	ByDatabase           []DatabaseConnections    `json:"byDatabase"`
+	ByState              map[string]int64         `json:"byState"`
+}
+
+type PgProcessInfo struct {
+	PID             int64   `json:"pid"`
+	User            *string `json:"user,omitempty"`
+	Database        *string `json:"database,omitempty"`
+	ApplicationName *string `json:"applicationName,omitempty"`
+	ClientAddr      *string `json:"clientAddr,omitempty"`
+	State           *string `json:"state,omitempty"`
+	BackendStart    *string `json:"backendStart,omitempty"`
+	XactStart       *string `json:"xactStart,omitempty"`
+	QueryStart      *string `json:"queryStart,omitempty"`
+	WaitEventType   *string `json:"waitEventType,omitempty"`
+	WaitEvent       *string `json:"waitEvent,omitempty"`
+	Query           *string `json:"query,omitempty"`
+}
+
+type PgDatabaseStats struct {
+	Database      string  `json:"database"`
+	XactCommit    int64   `json:"xactCommit"`
+	XactRollback  int64   `json:"xactRollback"`
+	BlksRead      int64   `json:"blksRead"`
+	BlksHit       int64   `json:"blksHit"`
+	CacheHitRatio float64 `json:"cacheHitRatio"`
+	TupReturned   int64   `json:"tupReturned"`
+	TupFetched    int64   `json:"tupFetched"`
+	TupInserted   int64   `json:"tupInserted"`
+	TupUpdated    int64   `json:"tupUpdated"`
+	TupDeleted    int64   `json:"tupDeleted"`
+	Conflicts     int64   `json:"conflicts"`
+	Deadlocks     int64   `json:"deadlocks"`
+	TempFiles     int64   `json:"tempFiles"`
+	TempBytes     int64   `json:"tempBytes"`
+}
+
+type PgReplicaInfo struct {
+	ClientAddr      *string `json:"clientAddr,omitempty"`
+	ApplicationName string  `json:"applicationName"`
+	State           string  `json:"state"`
+	SentLsn         *string `json:"sentLsn,omitempty"`
+	ReplayLsn       *string `json:"replayLsn,omitempty"`
+	WriteLag        *string `json:"writeLag,omitempty"`
+	FlushLag        *string `json:"flushLag,omitempty"`
+	ReplayLag       *string `json:"replayLag,omitempty"`
+}
+
+type PgReplicationInfo struct {
+	IsInRecovery  bool            `json:"isInRecovery"`
+	Replicas      []PgReplicaInfo `json:"replicas,omitempty"`
+	LastReplayLsn *string         `json:"lastReplayLsn,omitempty"`
+	ReplayLagSecs *float64        `json:"replayLagSecs,omitempty"`
+}
+
+type PgBlockedQuery struct {
+	BlockedPID   int64   `json:"blockedPid"`
+	BlockedQuery *string `json:"blockedQuery,omitempty"`
+	BlockedUser  *string `json:"blockedUser,omitempty"`
+	BlockingPIDs []int64 `json:"blockingPids"`
+}
+
+type PgLockInfo struct {
+	BlockedQueries []PgBlockedQuery `json:"blockedQueries,omitempty"`
+	TotalLocks     int64            `json:"totalLocks"`
+	UngrantedLocks int64            `json:"ungrantedLocks"`
+}
+
+type PgBgWriterStats struct {
+	CheckpointsTimed     *int64 `json:"checkpointsTimed,omitempty"`
+	CheckpointsRequested *int64 `json:"checkpointsRequested,omitempty"`
+	BuffersCheckpoint    *int64 `json:"buffersCheckpoint,omitempty"`
+	BuffersClean         *int64 `json:"buffersClean,omitempty"`
+	BuffersBackend       *int64 `json:"buffersBackend,omitempty"`
+	BuffersAlloc         *int64 `json:"buffersAlloc,omitempty"`
+}
+
+type PgVacuumTableInfo struct {
+	Schema         string  `json:"schema"`
+	Table          string  `json:"table"`
+	DeadTuples     int64   `json:"deadTuples"`
+	LiveTuples     int64   `json:"liveTuples"`
+	LastVacuum     *string `json:"lastVacuum,omitempty"`
+	LastAutovacuum *string `json:"lastAutovacuum,omitempty"`
+}
+
+type PgVacuumInfo struct {
+	TablesByDeadTuples []PgVacuumTableInfo `json:"tablesByDeadTuples,omitempty"`
+	OldestXidAge       *int64              `json:"oldestXidAge,omitempty"`
+}
+
+type PgSessionIssue struct {
+	PID             int64   `json:"pid"`
+	User            *string `json:"user,omitempty"`
+	Database        *string `json:"database,omitempty"`
+	ApplicationName *string `json:"applicationName,omitempty"`
+	ClientAddr      *string `json:"clientAddr,omitempty"`
+	State           *string `json:"state,omitempty"`
+	Query           *string `json:"query,omitempty"`
+	DurationSecs    float64 `json:"durationSecs"`
+}
+
+type PgSessionIssues struct {
+	ThresholdSecs      int64            `json:"thresholdSecs"`
+	LongRunningQueries []PgSessionIssue `json:"longRunningQueries"`
+	IdleInTransaction  []PgSessionIssue `json:"idleInTransaction"`
+}
+
+type PostgresMetricsResponse struct {
+	Activity      []PgProcessInfo          `json:"activity,omitempty"`
+	DatabaseStats []PgDatabaseStats        `json:"databaseStats,omitempty"`
+	Settings      map[string]string        `json:"settings,omitempty"`
+	Replication   *PgReplicationInfo       `json:"replication,omitempty"`
+	Connections   *PostgresConnectionStats `json:"connections,omitempty"`
+	Locks         *PgLockInfo              `json:"locks,omitempty"`
+	BgWriter      *PgBgWriterStats         `json:"bgwriter,omitempty"`
+	Vacuum        *PgVacuumInfo            `json:"vacuum,omitempty"`
+	Sessions      *PgSessionIssues         `json:"sessions,omitempty"`
+}
+
 // Error response type
 
 type ErrorResponse struct {
@@ -281,12 +459,12 @@ type KeysResponse struct {
 }
 
 type KeyInfo struct {
-	Key        string `json:"key"`
-	Type       string `json:"type"`
-	TTL        int64  `json:"ttl"`
-	Size       int64  `json:"size"`
-	Encoding   string `json:"encoding,omitempty"`
-	Error      *string `json:"error,omitempty"`
+	Key      string  `json:"key"`
+	Type     string  `json:"type"`
+	TTL      int64   `json:"ttl"`
+	Size     int64   `json:"size"`
+	Encoding string  `json:"encoding,omitempty"`
+	Error    *string `json:"error,omitempty"`
 }
 
 type KeyInfoResponse struct {
@@ -294,8 +472,8 @@ type KeyInfoResponse struct {
 }
 
 type RedisInfoResponse struct {
-	Info map[string]string `json:"info"`
-	Error *string          `json:"error,omitempty"`
+	Info  map[string]string `json:"info"`
+	Error *string           `json:"error,omitempty"`
 }
 
 type RedisDatabasesResponse struct {
