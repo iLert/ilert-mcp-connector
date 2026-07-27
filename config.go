@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Kafka      KafkaConfig
 	MySQL      MySQLConfig
+	Postgres   PostgresConfig
 	ClickHouse ClickHouseConfig
 	Redis      RedisConfig
 }
@@ -32,6 +33,16 @@ type MySQLConfig struct {
 	User     string
 	Password string
 	Database string
+}
+
+type PostgresConfig struct {
+	Enabled  bool
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Database string
+	SSLMode  string
 }
 
 type ClickHouseConfig struct {
@@ -74,6 +85,15 @@ func LoadConfig() *Config {
 			User:     getEnv("MYSQL_USER", "root"),
 			Password: getEnv("MYSQL_PASSWORD", ""),
 			Database: getEnv("MYSQL_DATABASE", ""),
+		},
+		Postgres: PostgresConfig{
+			Enabled:  getEnvBool("POSTGRES_ENABLED", false),
+			Host:     getEnv("POSTGRES_HOST", "localhost"),
+			Port:     getEnv("POSTGRES_PORT", "5432"),
+			User:     getEnv("POSTGRES_USER", "postgres"),
+			Password: getEnv("POSTGRES_PASSWORD", ""),
+			Database: getEnv("POSTGRES_DATABASE", "postgres"),
+			SSLMode:  getEnv("POSTGRES_SSLMODE", "disable"),
 		},
 		ClickHouse: ClickHouseConfig{
 			Enabled:  getEnvBool("CLICKHOUSE_ENABLED", false),

@@ -35,6 +35,23 @@ func checkToolConnectivity(cfg *Config) {
 		}
 	}
 
+	if cfg.Postgres.Enabled {
+		if err := checkPostgresConnection(cfg.Postgres); err != nil {
+			log.Error().
+				Err(err).
+				Str("host", cfg.Postgres.Host).
+				Str("port", cfg.Postgres.Port).
+				Str("database", cfg.Postgres.Database).
+				Msg("Failed to connect to PostgreSQL")
+		} else {
+			log.Info().
+				Str("host", cfg.Postgres.Host).
+				Str("port", cfg.Postgres.Port).
+				Str("database", cfg.Postgres.Database).
+				Msg("Successfully connected to PostgreSQL")
+		}
+	}
+
 	if cfg.ClickHouse.Enabled {
 		if err := checkClickHouseConnection(cfg.ClickHouse); err != nil {
 			log.Error().
