@@ -113,13 +113,15 @@ func (h *ClickHouseHandler) GetTables(c *gin.Context) {
 		return
 	}
 
-	database := c.Param("database")
+	database, ok := validateDatabaseParam(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	query := fmt.Sprintf("SELECT name FROM system.tables WHERE database = '%s'", database)
-	rows, err := h.conn.Query(ctx, query)
+	rows, err := h.conn.Query(ctx, "SELECT name FROM system.tables WHERE database = ?", database)
 	recordClickHouseOperation("get_tables", err)
 	if err != nil {
 		log.Error().Err(err).Str("database", database).Msg("Failed to query ClickHouse tables")
@@ -152,21 +154,27 @@ func (h *ClickHouseHandler) DescribeTable(c *gin.Context) {
 		return
 	}
 
-	database := c.Param("database")
-	table := c.Param("table")
+	database, ok := validateDatabaseParam(c)
+	if !ok {
+		return
+	}
+	table, ok := validateTableParam(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	query := fmt.Sprintf(`
+	query := `
 		SELECT
 			name, type, default_kind, default_expression, comment, codec_expression, ttl_expression
 		FROM system.columns
-		WHERE database = '%s' AND table = '%s'
+		WHERE database = ? AND table = ?
 		ORDER BY position
-	`, database, table)
+	`
 
-	rows, err := h.conn.Query(ctx, query)
+	rows, err := h.conn.Query(ctx, query, database, table)
 	recordClickHouseOperation("describe_table", err)
 	if err != nil {
 		log.Error().Err(err).Str("database", database).Str("table", table).Msg("Failed to describe ClickHouse table")
@@ -207,17 +215,17 @@ func (h *ClickHouseHandler) DescribeTable(c *gin.Context) {
 	}
 
 	// Get table info
-	infoQuery := fmt.Sprintf(`
+	infoQuery := `
 		SELECT
 			engine, total_rows, total_bytes, primary_key, sorting_key, partition_key
 		FROM system.tables
-		WHERE database = '%s' AND name = '%s'
-	`, database, table)
+		WHERE database = ? AND name = ?
+	`
 
 	var engine, primaryKey, sortingKey, partitionKey string
 	var totalRows, totalBytes uint64
 
-	err = h.conn.QueryRow(ctx, infoQuery).Scan(&engine, &totalRows, &totalBytes, &primaryKey, &sortingKey, &partitionKey)
+	err = h.conn.QueryRow(ctx, infoQuery, database, table).Scan(&engine, &totalRows, &totalBytes, &primaryKey, &sortingKey, &partitionKey)
 	if err != nil {
 		log.Error().Err(err).Str("database", database).Str("table", table).Msg("Failed to get table info")
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

@@ -113,7 +113,10 @@ func (h *MySQLHandler) GetTables(c *gin.Context) {
 		return
 	}
 
-	database := c.Param("database")
+	database, ok := validateDatabaseParam(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -159,8 +162,14 @@ func (h *MySQLHandler) DescribeTable(c *gin.Context) {
 		return
 	}
 
-	database := c.Param("database")
-	table := c.Param("table")
+	database, ok := validateDatabaseParam(c)
+	if !ok {
+		return
+	}
+	table, ok := validateTableParam(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -212,13 +221,15 @@ func (h *MySQLHandler) DescribeTable(c *gin.Context) {
 	}
 
 	// Get table status
-	var tableType, engine, rowFormat, tableRows, avgRowLength, dataLength, maxDataLength, indexLength, dataFree, autoIncrement, createTime, updateTime, checkTime, tableCollation, checksum, createOptions, tableComment sql.NullString
+	var engine, rowFormat, tableRows, avgRowLength, dataLength, indexLength, dataFree, autoIncrement, tableCollation, tableComment sql.NullString
 
-	statusQuery := fmt.Sprintf("SHOW TABLE STATUS FROM `%s` WHERE Name = '%s'", database, table)
-	err = h.db.QueryRowContext(ctx, statusQuery).Scan(
-		&tableType, &engine, &rowFormat, &tableRows, &avgRowLength, &dataLength,
-		&maxDataLength, &indexLength, &dataFree, &autoIncrement, &createTime,
-		&updateTime, &checkTime, &tableCollation, &checksum, &createOptions, &tableComment,
+	statusQuery := `SELECT ENGINE, ROW_FORMAT, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH, INDEX_LENGTH,
+			DATA_FREE, AUTO_INCREMENT, TABLE_COLLATION, TABLE_COMMENT
+		FROM information_schema.TABLES
+		WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`
+	err = h.db.QueryRowContext(ctx, statusQuery, database, table).Scan(
+		&engine, &rowFormat, &tableRows, &avgRowLength, &dataLength,
+		&indexLength, &dataFree, &autoIncrement, &tableCollation, &tableComment,
 	)
 
 	response := TableDetailResponse{
