@@ -113,7 +113,7 @@ func (h *MySQLHandler) GetTables(c *gin.Context) {
 		return
 	}
 
-	database, ok := validateDatabaseParam(c)
+	database, ok := validateMySQLDatabaseParam(c)
 	if !ok {
 		return
 	}
@@ -121,7 +121,7 @@ func (h *MySQLHandler) GetTables(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	query := fmt.Sprintf("SHOW TABLES FROM `%s`", database)
+	query := "SHOW TABLES FROM " + quoteMySQLIdentifier(database)
 	rows, err := h.db.QueryContext(ctx, query)
 	recordMySQLOperation("get_tables", err)
 	updateMySQLConnectionMetrics(h.db)
@@ -162,11 +162,11 @@ func (h *MySQLHandler) DescribeTable(c *gin.Context) {
 		return
 	}
 
-	database, ok := validateDatabaseParam(c)
+	database, ok := validateMySQLDatabaseParam(c)
 	if !ok {
 		return
 	}
-	table, ok := validateTableParam(c)
+	table, ok := validateMySQLTableParam(c)
 	if !ok {
 		return
 	}
@@ -174,7 +174,7 @@ func (h *MySQLHandler) DescribeTable(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	query := fmt.Sprintf("DESCRIBE `%s`.`%s`", database, table)
+	query := "DESCRIBE " + quoteMySQLIdentifier(database) + "." + quoteMySQLIdentifier(table)
 	rows, err := h.db.QueryContext(ctx, query)
 	recordMySQLOperation("describe_table", err)
 	updateMySQLConnectionMetrics(h.db)
