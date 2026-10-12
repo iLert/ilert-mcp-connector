@@ -113,7 +113,10 @@ func (h *ClickHouseHandler) GetTables(c *gin.Context) {
 		return
 	}
 
-	database := c.Param("database")
+	database, ok := validateClickHouseDatabaseParam(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -151,8 +154,14 @@ func (h *ClickHouseHandler) DescribeTable(c *gin.Context) {
 		return
 	}
 
-	database := c.Param("database")
-	table := c.Param("table")
+	database, ok := validateClickHouseDatabaseParam(c)
+	if !ok {
+		return
+	}
+	table, ok := validateClickHouseTableParam(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
